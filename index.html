@@ -1,0 +1,2238 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Barcode Camera</title>
+
+
+  <!-- html5-qrcode -->
+  <script
+    src="https://unpkg.com/html5-qrcode@2.3.8"
+    type="text/javascript">
+  </script>
+
+
+  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
+
+    body {
+
+      margin: 0;
+
+      background: #111;
+
+      color: #fff;
+
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Arial,
+        sans-serif;
+
+    }
+
+
+    .container {
+
+      max-width: 800px;
+
+      margin: 0 auto;
+
+      padding: 15px;
+
+    }
+
+
+    h1 {
+
+      font-size: 1.3rem;
+
+      margin: 5px 0 15px;
+
+    }
+
+
+    .status {
+
+      padding: 12px;
+
+      border-radius: 10px;
+
+      margin-bottom: 12px;
+
+      background: #333;
+
+      font-size: .9rem;
+
+    }
+
+
+    .status.success {
+
+      background: #123d27;
+
+    }
+
+
+    .status.error {
+
+      background: #4a161b;
+
+    }
+
+
+    .reader {
+
+      width: 100%;
+
+      max-width: 700px;
+
+      margin: 0 auto;
+
+      background: #000;
+
+      border-radius: 12px;
+
+      overflow: hidden;
+
+    }
+
+
+    .result {
+
+      background: #123d27;
+
+      border: 1px solid #198754;
+
+      border-radius: 12px;
+
+      padding: 15px;
+
+      margin-top: 15px;
+
+      display: none;
+
+    }
+
+
+    .result-type {
+
+      font-size: .8rem;
+
+      color: #8ff0bd;
+
+    }
+
+
+    .result-value {
+
+      font-size: 1.4rem;
+
+      font-weight: 700;
+
+      word-break: break-all;
+
+      margin-top: 5px;
+
+    }
+
+
+    .camera-info {
+
+      background: #1c1c1c;
+
+      border-radius: 12px;
+
+      padding: 15px;
+
+      margin-top: 15px;
+
+    }
+
+
+    .camera-info table {
+
+      width: 100%;
+
+      border-collapse: collapse;
+
+    }
+
+
+    .camera-info td {
+
+      padding: 7px 3px;
+
+      border-bottom: 1px solid #333;
+
+    }
+
+
+    .camera-info td:first-child {
+
+      color: #aaa;
+
+      width: 40%;
+
+    }
+
+
+    .controls {
+
+      display: flex;
+
+      flex-wrap: wrap;
+
+      gap: 8px;
+
+      margin-top: 15px;
+
+    }
+
+
+    button {
+
+      border: 0;
+
+      border-radius: 9px;
+
+      padding: 10px 15px;
+
+      font-size: .9rem;
+
+      font-weight: 600;
+
+      cursor: pointer;
+
+    }
+
+
+    .primary {
+
+      background: #0d6efd;
+
+      color: white;
+
+    }
+
+
+    .danger {
+
+      background: #dc3545;
+
+      color: white;
+
+    }
+
+
+    .secondary {
+
+      background: #6c757d;
+
+      color: white;
+
+    }
+
+
+    .success {
+
+      background: #198754;
+
+      color: white;
+
+    }
+
+
+    .warning {
+
+      background: #ffc107;
+
+      color: #212529;
+
+    }
+
+
+    .file-input {
+
+      display: none;
+
+    }
+
+
+    .note {
+
+      color: #aaa;
+
+      font-size: .78rem;
+
+      line-height: 1.5;
+
+      margin-top: 15px;
+
+    }
+
+
+    @media (max-width: 600px) {
+
+      .controls button {
+
+        width: 100%;
+
+      }
+
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+
+<div class="container">
+
+
+  <h1>
+
+    <span>📷</span>
+
+    Barcode Camera
+
+  </h1>
+
+
+  <div
+    id="status"
+    class="status"
+  >
+
+    กำลังเตรียมระบบ...
+
+  </div>
+
+
+  <div
+    id="reader"
+    class="reader"
+  >
+  </div>
+
+
+  <div class="controls">
+
+
+    <button
+      class="primary"
+      onclick="startScanner()"
+    >
+
+      📷 เปิดกล้อง
+
+    </button>
+
+
+    <button
+      class="danger"
+      onclick="stopScanner()"
+    >
+
+      ⏹ ปิดกล้อง
+
+    </button>
+
+
+    <button
+      id="switchButton"
+      class="secondary"
+      onclick="switchCamera()"
+    >
+
+      🔄 เปลี่ยนกล้อง
+
+    </button>
+
+
+    <button
+      id="torchButton"
+      class="warning"
+      onclick="toggleTorch()"
+      style="display:none"
+    >
+
+      🔦 ไฟฉาย
+
+    </button>
+
+
+    <button
+      id="captureButton"
+      class="success"
+      onclick="document.getElementById('fileInput').click()"
+    >
+
+      🖼 อ่านจากรูป
+
+    </button>
+
+
+  </div>
+
+
+  <input
+    id="fileInput"
+    class="file-input"
+    type="file"
+    accept="image/*"
+    capture="environment"
+  >
+
+
+  <div
+    id="result"
+    class="result"
+  >
+
+    <div class="result-type">
+
+      Barcode
+
+    </div>
+
+
+    <div
+      id="resultFormat"
+      class="result-value"
+    >
+
+      -
+
+    </div>
+
+
+    <hr>
+
+
+    <div class="result-type">
+
+      ค่า
+
+    </div>
+
+
+    <div
+      id="resultValue"
+      class="result-value"
+    >
+
+      -
+
+    </div>
+
+  </div>
+
+
+  <div class="camera-info">
+
+
+    <strong>
+      ข้อมูลกล้อง
+    </strong>
+
+
+    <table class="mt-2">
+
+
+      <tr>
+
+        <td>Camera</td>
+
+        <td id="cameraInfo">-</td>
+
+      </tr>
+
+
+      <tr>
+
+        <td>Resolution</td>
+
+        <td id="resolutionInfo">-</td>
+
+      </tr>
+
+
+      <tr>
+
+        <td>FPS</td>
+
+        <td id="fpsInfo">-</td>
+
+      </tr>
+
+
+      <tr>
+
+        <td>Facing</td>
+
+        <td id="facingInfo">-</td>
+
+      </tr>
+
+
+      <tr>
+
+        <td>Zoom</td>
+
+        <td id="zoomInfo">-</td>
+
+      </tr>
+
+
+      <tr>
+
+        <td>Torch</td>
+
+        <td id="torchInfo">-</td>
+
+      </tr>
+
+
+    </table>
+
+
+  </div>
+
+
+  <div class="note">
+
+    ระบบนี้รองรับเฉพาะ Barcode แบบ 1D
+    <br>
+
+    QR Code, Data Matrix และ PDF417 จะไม่ถูกนำมาใช้ในการอ่าน
+
+    <br><br>
+
+    การประมวลผลภาพและ Barcode ทำงานภายใน Browser
+    ไม่มีการอัปโหลดภาพไปยัง Server
+
+  </div>
+
+
+</div>
+
+
+<script>
+
+
+/****************************************************
+ * BARCODE FORMATS
+ ****************************************************/
+
+
+/*
+ * สำคัญมาก
+ *
+ * QR_CODE ไม่อยู่ในรายการนี้
+ *
+ * ดังนั้น Decoder จะได้รับเฉพาะ 1D Barcode
+ */
+
+const BARCODE_FORMATS = [
+
+  Html5QrcodeSupportedFormats.EAN_13,
+
+  Html5QrcodeSupportedFormats.EAN_8,
+
+  Html5QrcodeSupportedFormats.UPC_A,
+
+  Html5QrcodeSupportedFormats.UPC_E,
+
+  Html5QrcodeSupportedFormats.CODE_128,
+
+  Html5QrcodeSupportedFormats.CODE_39,
+
+  Html5QrcodeSupportedFormats.CODE_93,
+
+  Html5QrcodeSupportedFormats.CODABAR,
+
+  Html5QrcodeSupportedFormats.ITF
+
+];
+
+
+
+/****************************************************
+ * GLOBAL
+ ****************************************************/
+
+let scanner = null;
+
+let cameras = [];
+
+let currentCameraIndex = 0;
+
+let currentCameraId = null;
+
+let scannerRunning = false;
+
+let torchOn = false;
+
+let lastValue = '';
+
+let lastScanTimestamp = 0;
+
+
+
+/****************************************************
+ * FORMAT NAME
+ ****************************************************/
+
+const FORMAT_NAMES = {};
+
+
+FORMAT_NAMES[
+  Html5QrcodeSupportedFormats.EAN_13
+] = 'EAN-13';
+
+
+FORMAT_NAMES[
+  Html5QrcodeSupportedFormats.EAN_8
+] = 'EAN-8';
+
+
+FORMAT_NAMES[
+  Html5QrcodeSupportedFormats.UPC_A
+] = 'UPC-A';
+
+
+FORMAT_NAMES[
+  Html5QrcodeSupportedFormats.UPC_E
+] = 'UPC-E';
+
+
+FORMAT_NAMES[
+  Html5QrcodeSupportedFormats.CODE_128
+] = 'CODE-128';
+
+
+FORMAT_NAMES[
+  Html5QrcodeSupportedFormats.CODE_39
+] = 'CODE-39';
+
+
+FORMAT_NAMES[
+  Html5QrcodeSupportedFormats.CODE_93
+] = 'CODE-93';
+
+
+FORMAT_NAMES[
+  Html5QrcodeSupportedFormats.CODABAR
+] = 'CODABAR';
+
+
+FORMAT_NAMES[
+  Html5QrcodeSupportedFormats.ITF
+] = 'ITF';
+
+
+
+/****************************************************
+ * INIT
+ ****************************************************/
+
+window.addEventListener(
+  'load',
+  function() {
+
+    sendToParent(
+      'CAMERA_READY',
+      {}
+    );
+
+
+    setStatus(
+      'พร้อมสำหรับการเปิดกล้อง',
+      'normal'
+    );
+
+  }
+);
+
+
+
+/****************************************************
+ * START SCANNER
+ ****************************************************/
+
+async function startScanner() {
+
+
+  try {
+
+
+    setStatus(
+      'กำลังขอสิทธิ์ใช้งานกล้อง...',
+      'normal'
+    );
+
+
+    /*
+     * สร้าง Scanner
+     */
+
+    if (!scanner) {
+
+      scanner =
+        new Html5Qrcode(
+          'reader',
+          {
+
+            formatsToSupport:
+              BARCODE_FORMATS,
+
+            /*
+             * เปิด Native BarcodeDetector
+             * ถ้า Browser รองรับ
+             */
+
+            useBarCodeDetectorIfSupported:
+              true,
+
+            verbose: false
+
+          }
+        );
+
+    }
+
+
+    /*
+     * ขอรายการ Camera
+     *
+     * API นี้จะขอ Permission
+     */
+
+    cameras =
+      await Html5Qrcode.getCameras();
+
+
+    if (
+      !cameras ||
+      cameras.length === 0
+    ) {
+
+      throw new Error(
+        'ไม่พบกล้อง'
+      );
+
+    }
+
+
+    /*
+     * เลือกกล้องหลัง
+     */
+
+    currentCameraIndex =
+      findBestCamera(
+        cameras
+      );
+
+
+    currentCameraId =
+      cameras[
+        currentCameraIndex
+      ].id;
+
+
+    /*
+     * ตั้งค่าตามอุปกรณ์
+     */
+
+    const constraints =
+      getCameraConstraints();
+
+
+    /*
+     * Configuration
+     */
+
+    const config = {
+
+      fps: 10,
+
+      aspectRatio: 16 / 9,
+
+      qrbox:
+        function(
+          width,
+          height
+        ) {
+
+          let boxWidth =
+            Math.floor(
+              width * 0.88
+            );
+
+
+          let boxHeight =
+            Math.floor(
+              height * 0.32
+            );
+
+
+          boxWidth =
+            Math.max(
+              280,
+              Math.min(
+                boxWidth,
+                1000
+              )
+            );
+
+
+          boxHeight =
+            Math.max(
+              100,
+              Math.min(
+                boxHeight,
+                350
+              )
+            );
+
+
+          return {
+
+            width:
+              boxWidth,
+
+            height:
+              boxHeight
+
+          };
+
+        },
+
+
+      videoConstraints:
+        constraints
+
+    };
+
+
+    /*
+     * เริ่มกล้อง
+     */
+
+    await scanner.start(
+
+      currentCameraId,
+
+      config,
+
+      onScanSuccess,
+
+      onScanFailure
+
+    );
+
+
+    scannerRunning = true;
+
+
+    setStatus(
+      'เปิดกล้องแล้ว กำลังค้นหา Barcode...',
+      'success'
+    );
+
+
+    /*
+     * อ่าน Camera Settings
+     */
+
+    setTimeout(
+      updateCameraInfo,
+      700
+    );
+
+
+  }
+  catch (error) {
+
+
+    console.error(
+      error
+    );
+
+
+    setStatus(
+      getCameraErrorMessage(
+        error
+      ),
+      'error'
+    );
+
+
+    sendToParent(
+      'CAMERA_ERROR',
+      {},
+      getCameraErrorMessage(
+        error
+      )
+    );
+
+  }
+
+}
+
+
+
+/****************************************************
+ * CAMERA CONSTRAINTS
+ ****************************************************/
+
+function getCameraConstraints() {
+
+
+  /*
+   * เริ่มต้นด้วย 1920 × 1080
+   *
+   * เป็น ideal ไม่ใช่ exact
+   */
+
+  return {
+
+    width: {
+
+      ideal: 1920
+
+    },
+
+
+    height: {
+
+      ideal: 1080
+
+    },
+
+
+    frameRate: {
+
+      ideal: 30,
+
+      min: 15
+
+    },
+
+
+    facingMode: {
+
+      ideal: 'environment'
+
+    }
+
+  };
+
+}
+
+
+
+/****************************************************
+ * FIND BEST CAMERA
+ ****************************************************/
+
+function findBestCamera(
+  list
+) {
+
+
+  const keywords = [
+
+    'back',
+    'rear',
+    'environment',
+    'หลัง',
+    'ด้านหลัง',
+    'main',
+    'wide'
+
+  ];
+
+
+  for (
+    let i = 0;
+    i < list.length;
+    i++
+  ) {
+
+
+    const label =
+      (
+        list[i].label ||
+        ''
+      ).toLowerCase();
+
+
+    for (
+      const keyword
+      of keywords
+    ) {
+
+
+      if (
+        label.includes(
+          keyword
+        )
+      ) {
+
+        return i;
+
+      }
+
+    }
+
+  }
+
+
+  return 0;
+
+}
+
+
+
+/****************************************************
+ * SCAN SUCCESS
+ ****************************************************/
+
+async function onScanSuccess(
+  decodedText,
+  decodedResult
+) {
+
+
+  const now =
+    Date.now();
+
+
+  /*
+   * ป้องกันอ่านซ้ำ
+   */
+
+  if (
+    decodedText === lastValue &&
+    now - lastScanTimestamp < 2000
+  ) {
+
+    return;
+
+  }
+
+
+  lastValue =
+    decodedText;
+
+
+  lastScanTimestamp =
+    now;
+
+
+  /*
+   * ดึง Barcode Format
+   */
+
+  let format =
+    'Barcode';
+
+
+  try {
+
+
+    const rawFormat =
+      decodedResult &&
+      decodedResult.result &&
+      decodedResult.result.format;
+
+
+    if (rawFormat) {
+
+
+      if (
+        rawFormat.formatName
+      ) {
+
+        format =
+          rawFormat.formatName;
+
+      }
+      else if (
+        typeof rawFormat ===
+        'number'
+      ) {
+
+        format =
+          FORMAT_NAMES[
+            rawFormat
+          ] ||
+          'Barcode';
+
+      }
+
+    }
+
+  }
+  catch (error) {
+
+    console.warn(
+      error
+    );
+
+  }
+
+
+  /*
+   * สำคัญ
+   *
+   * ตรวจสอบ format อีกชั้น
+   */
+
+  if (
+    !isAllowedFormat(
+      decodedResult
+    )
+  ) {
+
+    console.warn(
+      'Ignored unsupported format:',
+      decodedResult
+    );
+
+    return;
+
+  }
+
+
+  /*
+   * แสดงผล
+   */
+
+  showResult(
+    format,
+    decodedText
+  );
+
+
+  /*
+   * ส่งกลับ GAS
+   */
+
+  const cameraInfo =
+    getCurrentCameraInfo();
+
+
+  sendToParent(
+    'BARCODE_RESULT',
+    {
+
+      format:
+        format,
+
+      value:
+        decodedText,
+
+      camera:
+        cameraInfo
+
+    }
+  );
+
+
+  /*
+   * ส่งข้อมูล Camera ด้วย
+   */
+
+  sendCameraInfo();
+
+
+  /*
+   * สั่น
+   */
+
+  if (
+    navigator.vibrate
+  ) {
+
+    navigator.vibrate(
+      100
+    );
+
+  }
+
+}
+
+
+
+/****************************************************
+ * SCAN FAILURE
+ ****************************************************/
+
+function onScanFailure(
+  error
+) {
+
+  /*
+   * ไม่ทำอะไร
+   *
+   * เพราะ callback นี้ถูกเรียกบ่อยมาก
+   */
+
+}
+
+
+
+/****************************************************
+ * CHECK FORMAT
+ ****************************************************/
+
+function isAllowedFormat(
+  decodedResult
+) {
+
+
+  if (
+    !decodedResult ||
+    !decodedResult.result
+  ) {
+
+    /*
+     * กรณี Browser คืน result
+     * ไม่ครบ
+     *
+     * ไม่ reject ทันที
+     * เพราะบาง implementation
+     * อาจคืนข้อมูลไม่เหมือนกัน
+     */
+
+    return true;
+
+  }
+
+
+  const format =
+    decodedResult.result.format;
+
+
+  if (
+    !format
+  ) {
+
+    return true;
+
+  }
+
+
+  /*
+   * format.numeric
+   */
+
+  if (
+    typeof format ===
+    'number'
+  ) {
+
+    return BARCODE_FORMATS.includes(
+      format
+    );
+
+  }
+
+
+  /*
+   * formatName
+   */
+
+  if (
+    format.formatName
+  ) {
+
+    const name =
+      String(
+        format.formatName
+      ).toUpperCase();
+
+
+    const allowedNames = [
+
+      'EAN_13',
+      'EAN-13',
+
+      'EAN_8',
+      'EAN-8',
+
+      'UPC_A',
+      'UPC-A',
+
+      'UPC_E',
+      'UPC-E',
+
+      'CODE_128',
+      'CODE-128',
+
+      'CODE_39',
+      'CODE-39',
+
+      'CODE_93',
+      'CODE-93',
+
+      'CODABAR',
+
+      'ITF'
+
+    ];
+
+
+    return allowedNames.includes(
+      name
+    );
+
+  }
+
+
+  return true;
+
+}
+
+
+
+/****************************************************
+ * CAMERA INFORMATION
+ ****************************************************/
+
+function updateCameraInfo() {
+
+
+  if (
+    !scanner ||
+    !scannerRunning
+  ) {
+
+    return;
+
+  }
+
+
+  try {
+
+
+    const settings =
+      scanner.getRunningTrackSettings();
+
+
+    const capabilities =
+      scanner.getRunningTrackCapabilities();
+
+
+    /*
+     * Camera
+     */
+
+    let cameraName =
+      '-';
+
+
+    if (
+      cameras[
+        currentCameraIndex
+      ]
+    ) {
+
+      cameraName =
+        cameras[
+          currentCameraIndex
+        ].label ||
+        'Camera';
+
+    }
+
+
+    document.getElementById(
+      'cameraInfo'
+    ).textContent =
+      cameraName;
+
+
+    /*
+     * Resolution
+     */
+
+    if (
+      settings.width &&
+      settings.height
+    ) {
+
+      document.getElementById(
+        'resolutionInfo'
+      ).textContent =
+        settings.width +
+        ' × ' +
+        settings.height;
+
+    }
+
+
+    /*
+     * FPS
+     */
+
+    if (
+      settings.frameRate
+    ) {
+
+      document.getElementById(
+        'fpsInfo'
+      ).textContent =
+        Number(
+          settings.frameRate
+        ).toFixed(1);
+
+    }
+
+
+    /*
+     * Facing
+     */
+
+    document.getElementById(
+      'facingInfo'
+    ).textContent =
+      settings.facingMode ||
+      '-';
+
+
+    /*
+     * Zoom
+     */
+
+    if (
+      capabilities.zoom
+    ) {
+
+      const zoom =
+        capabilities.zoom;
+
+
+      if (
+        typeof zoom ===
+        'object'
+      ) {
+
+        document.getElementById(
+          'zoomInfo'
+        ).textContent =
+          zoom.min +
+          ' - ' +
+          zoom.max;
+
+      }
+
+    }
+    else {
+
+      document.getElementById(
+        'zoomInfo'
+      ).textContent =
+        'ไม่รองรับ';
+
+    }
+
+
+    /*
+     * Torch
+     */
+
+    if (
+      capabilities.torch === true ||
+      capabilities.torchFeature
+    ) {
+
+      document.getElementById(
+        'torchInfo'
+      ).textContent =
+        'รองรับ';
+
+
+      document.getElementById(
+        'torchButton'
+      ).style.display =
+        'inline-block';
+
+    }
+    else {
+
+      document.getElementById(
+        'torchInfo'
+      ).textContent =
+        'ไม่รองรับ';
+
+    }
+
+
+    /*
+     * ส่งข้อมูลกลับ GAS
+     */
+
+    sendCameraInfo();
+
+  }
+  catch (error) {
+
+    console.error(
+      'Camera info error:',
+      error
+    );
+
+  }
+
+}
+
+
+
+/****************************************************
+ * CURRENT CAMERA INFO
+ ****************************************************/
+
+function getCurrentCameraInfo() {
+
+
+  let settings =
+    {};
+
+
+  try {
+
+    settings =
+      scanner.getRunningTrackSettings();
+
+  }
+  catch (error) {
+
+    console.warn(
+      error
+    );
+
+  }
+
+
+  return {
+
+    camera:
+      cameras[
+        currentCameraIndex
+      ]
+        ? cameras[
+            currentCameraIndex
+          ].label
+        : '',
+
+    width:
+      settings.width ||
+      null,
+
+    height:
+      settings.height ||
+      null,
+
+    fps:
+      settings.frameRate ||
+      null,
+
+    facingMode:
+      settings.facingMode ||
+      null
+
+  };
+
+}
+
+
+
+/****************************************************
+ * SEND CAMERA INFO
+ ****************************************************/
+
+function sendCameraInfo() {
+
+
+  const info =
+    getCurrentCameraInfo();
+
+
+  try {
+
+
+    const capabilities =
+      scanner.getRunningTrackCapabilities();
+
+
+    info.zoom =
+      capabilities.zoom ||
+      null;
+
+
+    info.torch =
+      !!capabilities.torch;
+
+
+  }
+  catch (error) {
+
+    info.zoom =
+      null;
+
+    info.torch =
+      false;
+
+  }
+
+
+  sendToParent(
+    'CAMERA_INFO',
+    info
+  );
+
+}
+
+
+
+/****************************************************
+ * SWITCH CAMERA
+ ****************************************************/
+
+async function switchCamera() {
+
+
+  if (
+    !scannerRunning ||
+    cameras.length <= 1
+  ) {
+
+    return;
+
+  }
+
+
+  try {
+
+
+    setStatus(
+      'กำลังเปลี่ยนกล้อง...',
+      'normal'
+    );
+
+
+    await scanner.stop();
+
+
+    currentCameraIndex++;
+
+
+    if (
+      currentCameraIndex >=
+      cameras.length
+    ) {
+
+      currentCameraIndex =
+        0;
+
+    }
+
+
+    currentCameraId =
+      cameras[
+        currentCameraIndex
+      ].id;
+
+
+    const config = {
+
+      fps: 10,
+
+      aspectRatio:
+        16 / 9,
+
+      qrbox: {
+
+        width: 600,
+
+        height: 180
+
+      },
+
+      videoConstraints:
+        getCameraConstraints()
+
+    };
+
+
+    await scanner.start(
+
+      currentCameraId,
+
+      config,
+
+      onScanSuccess,
+
+      onScanFailure
+
+    );
+
+
+    setStatus(
+      'เปลี่ยนกล้องแล้ว',
+      'success'
+    );
+
+
+    setTimeout(
+      updateCameraInfo,
+      500
+    );
+
+
+  }
+  catch (error) {
+
+    console.error(
+      error
+    );
+
+
+    setStatus(
+      'ไม่สามารถเปลี่ยนกล้องได้',
+      'error'
+    );
+
+  }
+
+}
+
+
+
+/****************************************************
+ * STOP CAMERA
+ ****************************************************/
+
+async function stopScanner() {
+
+
+  if (
+    !scanner ||
+    !scannerRunning
+  ) {
+
+    return;
+
+  }
+
+
+  try {
+
+    await scanner.stop();
+
+  }
+  catch (error) {
+
+    console.error(
+      error
+    );
+
+  }
+
+
+  scannerRunning =
+    false;
+
+
+  setStatus(
+    'ปิดกล้องแล้ว',
+    'normal'
+  );
+
+}
+
+
+
+/****************************************************
+ * TORCH
+ ****************************************************/
+
+async function toggleTorch() {
+
+
+  if (
+    !scanner ||
+    !scannerRunning
+  ) {
+
+    return;
+
+  }
+
+
+  try {
+
+
+    torchOn =
+      !torchOn;
+
+
+    await scanner.applyVideoConstraints({
+
+      advanced: [
+
+        {
+
+          torch:
+            torchOn
+
+        }
+
+      ]
+
+    });
+
+
+    setStatus(
+      torchOn
+        ? 'เปิดไฟฉายแล้ว'
+        : 'ปิดไฟฉายแล้ว',
+      'success'
+    );
+
+
+  }
+  catch (error) {
+
+
+    console.warn(
+      'Torch not supported:',
+      error
+    );
+
+
+    torchOn =
+      false;
+
+
+    setStatus(
+      'อุปกรณ์หรือ Browser ไม่รองรับไฟฉาย',
+      'normal'
+    );
+
+  }
+
+}
+
+
+
+/****************************************************
+ * FILE / CAPTURE
+ ****************************************************/
+
+document.getElementById(
+  'fileInput'
+).addEventListener(
+  'change',
+  async function(event) {
+
+
+    const file =
+      event.target.files[0];
+
+
+    if (!file) {
+
+      return;
+
+    }
+
+
+    try {
+
+
+      /*
+       * หากกล้องกำลังทำงาน
+       * ต้องหยุดก่อน
+       */
+
+      if (
+        scannerRunning
+      ) {
+
+        await scanner.stop();
+
+        scannerRunning =
+          false;
+
+      }
+
+
+      setStatus(
+        'กำลังวิเคราะห์รูปภาพ...',
+        'normal'
+      );
+
+
+      /*
+       * ใช้ scanFileV2
+       *
+       * เพื่อให้สามารถดู Barcode Format
+       */
+
+      const result =
+        await scanner.scanFileV2(
+          file,
+          false
+        );
+
+
+      if (!result) {
+
+        throw new Error(
+          'ไม่พบ Barcode'
+        );
+
+      }
+
+
+      const decodedText =
+        result.decodedText;
+
+
+      /*
+       * ตรวจ Format
+       */
+
+      if (
+        !isAllowedFormat(
+          result
+        )
+      ) {
+
+        throw new Error(
+          'รูปภาพนี้ไม่ใช่ Barcode 1D ที่รองรับ'
+        );
+
+      }
+
+
+      let format =
+        'Barcode';
+
+
+      try {
+
+        const rawFormat =
+          result.result &&
+          result.result.format;
+
+
+        if (
+          rawFormat &&
+          rawFormat.formatName
+        ) {
+
+          format =
+            rawFormat.formatName;
+
+        }
+
+      }
+      catch (error) {
+
+        console.warn(
+          error
+        );
+
+      }
+
+
+      showResult(
+        format,
+        decodedText
+      );
+
+
+      sendToParent(
+        'BARCODE_RESULT',
+        {
+
+          format:
+            format,
+
+          value:
+            decodedText,
+
+          source:
+            'image'
+
+        }
+      );
+
+
+      setStatus(
+        'อ่าน Barcode จากรูปภาพสำเร็จ',
+        'success'
+      );
+
+
+    }
+    catch (error) {
+
+
+      console.error(
+        error
+      );
+
+
+      setStatus(
+        'ไม่พบ Barcode 1D ที่รองรับในรูปภาพ',
+        'error'
+      );
+
+    }
+
+
+    /*
+     * reset
+     */
+
+    event.target.value =
+      '';
+
+  }
+);
+
+
+
+/****************************************************
+ * SHOW RESULT
+ ****************************************************/
+
+function showResult(
+  format,
+  value
+) {
+
+
+  document.getElementById(
+    'result'
+  ).style.display =
+    'block';
+
+
+  document.getElementById(
+    'resultFormat'
+  ).textContent =
+    format;
+
+
+  document.getElementById(
+    'resultValue'
+  ).textContent =
+    value;
+
+}
+
+
+
+/****************************************************
+ * STATUS
+ ****************************************************/
+
+function setStatus(
+  message,
+  type
+) {
+
+
+  const element =
+    document.getElementById(
+      'status'
+    );
+
+
+  element.textContent =
+    message;
+
+
+  element.className =
+    'status';
+
+
+  if (
+    type === 'success'
+  ) {
+
+    element.classList.add(
+      'success'
+    );
+
+  }
+  else if (
+    type === 'error'
+  ) {
+
+    element.classList.add(
+      'error'
+    );
+
+  }
+
+}
+
+
+
+/****************************************************
+ * SEND TO GOOGLE APPS SCRIPT
+ ****************************************************/
+
+function sendToParent(
+  type,
+  data,
+  message
+) {
+
+
+  if (
+    !window.opener
+  ) {
+
+    console.warn(
+      'window.opener is not available'
+    );
+
+    return;
+
+  }
+
+
+  window.opener.postMessage(
+
+    {
+
+      type:
+        type,
+
+      data:
+        data,
+
+      message:
+        message ||
+        null
+
+    },
+
+    '*'
+
+  );
+
+}
+
+
+
+/****************************************************
+ * CAMERA ERROR MESSAGE
+ ****************************************************/
+
+function getCameraErrorMessage(
+  error
+) {
+
+
+  if (!error) {
+
+    return 'ไม่สามารถเปิดกล้องได้';
+
+  }
+
+
+  const name =
+    error.name ||
+    '';
+
+
+  if (
+    name ===
+    'NotAllowedError'
+  ) {
+
+    return (
+      'ไม่ได้รับอนุญาตให้ใช้กล้อง ' +
+      'กรุณากด Allow ใน Browser'
+    );
+
+  }
+
+
+  if (
+    name ===
+    'NotFoundError'
+  ) {
+
+    return (
+      'ไม่พบกล้องในอุปกรณ์'
+    );
+
+  }
+
+
+  if (
+    name ===
+    'NotReadableError'
+  ) {
+
+    return (
+      'กล้องกำลังถูกใช้งานโดยโปรแกรมอื่น'
+    );
+
+  }
+
+
+  if (
+    name ===
+    'OverconstrainedError'
+  ) {
+
+    return (
+      'ค่าความละเอียดที่ร้องขอไม่รองรับ'
+    );
+
+  }
+
+
+  return (
+    error.message ||
+    'เกิดข้อผิดพลาดในการเปิดกล้อง'
+  );
+
+}
+
+</script>
+
+
+</body>
+
+</html>
