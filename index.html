@@ -1,1696 +1,2039 @@
 <!DOCTYPE html>
 <html lang="th">
-
 <head>
-
   <meta charset="UTF-8">
 
   <meta
     name="viewport"
-    content="width=device-width, initial-scale=1.0"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
   >
 
-  <title>Barcode Camera</title>
+  <meta name="theme-color" content="#111827">
 
+  <title>Barcode Camera Test</title>
 
-  <!-- html5-qrcode -->
+  <!--
+    html5-qrcode
+    Version: 2.3.8
+  -->
   <script
-    src="https://unpkg.com/html5-qrcode@2.3.8"
-    type="text/javascript">
+    src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js">
   </script>
 
-
   <style>
+    /* =========================================================
+       ROOT
+    ========================================================= */
+
+    :root {
+      --bg: #f3f4f6;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+
+      --success: #16a34a;
+      --success-bg: #ecfdf5;
+
+      --warning: #d97706;
+      --warning-bg: #fffbeb;
+
+      --danger: #dc2626;
+      --danger-bg: #fef2f2;
+
+      --dark-card: #111827;
+
+      --radius: 18px;
+      --shadow:
+        0 4px 20px rgba(0, 0, 0, 0.06);
+    }
 
     * {
       box-sizing: border-box;
     }
 
+    html {
+      scroll-behavior: smooth;
+    }
 
     body {
-
       margin: 0;
-
-      background: #111;
-
-      color: #fff;
+      padding: 0;
 
       font-family:
+        system-ui,
         -apple-system,
         BlinkMacSystemFont,
         "Segoe UI",
         Roboto,
-        Arial,
+        "Noto Sans Thai",
         sans-serif;
 
+      background: var(--bg);
+      color: var(--text);
+
+      min-height: 100vh;
+
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
 
+    button,
+    input {
+      font: inherit;
+    }
 
-    .container {
+    button {
+      -webkit-tap-highlight-color: transparent;
+    }
 
-      max-width: 800px;
+    /* =========================================================
+       APP CONTAINER
+    ========================================================= */
+
+    .app {
+      width: 100%;
+      max-width: 1400px;
 
       margin: 0 auto;
-
-      padding: 15px;
-
+      padding: 16px;
     }
 
+    /* =========================================================
+       HEADER
+    ========================================================= */
 
-    h1 {
+    .header {
+      background: var(--card);
+      border: 1px solid var(--border);
 
-      font-size: 1.3rem;
+      border-radius: var(--radius);
 
-      margin: 5px 0 15px;
+      padding: 20px 22px;
+      margin-bottom: 16px;
 
+      box-shadow: var(--shadow);
     }
 
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
 
-    .status {
+      font-size: 22px;
+      font-weight: 800;
 
-      padding: 12px;
-
-      border-radius: 10px;
-
-      margin-bottom: 12px;
-
-      background: #333;
-
-      font-size: .9rem;
-
+      margin: 0;
     }
 
+    .header-subtitle {
+      margin: 6px 0 0;
 
-    .status.success {
+      color: var(--muted);
 
-      background: #123d27;
-
+      font-size: 14px;
+      line-height: 1.6;
     }
 
+    .header-badge {
+      display: inline-flex;
 
-    .status.error {
+      align-items: center;
+      gap: 6px;
 
-      background: #4a161b;
+      margin-top: 12px;
 
+      padding: 6px 10px;
+
+      border-radius: 999px;
+
+      background: #eff6ff;
+      color: #1d4ed8;
+
+      font-size: 12px;
+      font-weight: 700;
     }
 
+    /* =========================================================
+       MAIN GRID
+    ========================================================= */
 
-    .reader {
+    .main-grid {
+      display: grid;
+
+      grid-template-columns:
+        minmax(0, 1.4fr)
+        minmax(320px, 0.8fr);
+
+      gap: 16px;
+    }
+
+    /* =========================================================
+       CARD
+    ========================================================= */
+
+    .card {
+      background: var(--card);
+
+      border: 1px solid var(--border);
+
+      border-radius: var(--radius);
+
+      box-shadow: var(--shadow);
+
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 16px 18px 10px;
+
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .card-body {
+      padding: 16px 18px 20px;
+    }
+
+    /* =========================================================
+       CAMERA
+    ========================================================= */
+
+    .camera-card {
+      position: relative;
+    }
+
+    .camera-wrapper {
+      position: relative;
 
       width: 100%;
-
-      max-width: 700px;
-
-      margin: 0 auto;
 
       background: #000;
 
-      border-radius: 12px;
+      border-radius: 14px;
 
       overflow: hidden;
 
+      min-height: 280px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
+    /*
+      html5-qrcode จะสร้าง video/canvas ภายใน element นี้
+    */
 
-    .result {
-
-      background: #123d27;
-
-      border: 1px solid #198754;
-
-      border-radius: 12px;
-
-      padding: 15px;
-
-      margin-top: 15px;
-
-      display: none;
-
-    }
-
-
-    .result-type {
-
-      font-size: .8rem;
-
-      color: #8ff0bd;
-
-    }
-
-
-    .result-value {
-
-      font-size: 1.4rem;
-
-      font-weight: 700;
-
-      word-break: break-all;
-
-      margin-top: 5px;
-
-    }
-
-
-    .camera-info {
-
-      background: #1c1c1c;
-
-      border-radius: 12px;
-
-      padding: 15px;
-
-      margin-top: 15px;
-
-    }
-
-
-    .camera-info table {
-
+    #reader {
       width: 100%;
 
-      border-collapse: collapse;
-
+      background: #000;
     }
 
+    #reader video {
+      width: 100% !important;
+      height: auto !important;
 
-    .camera-info td {
+      max-height: 72vh;
 
-      padding: 7px 3px;
-
-      border-bottom: 1px solid #333;
-
+      object-fit: cover;
     }
 
-
-    .camera-info td:first-child {
-
-      color: #aaa;
-
-      width: 40%;
-
+    #reader canvas {
+      max-width: 100%;
     }
 
+    /*
+      ซ่อน UI เดิมของ html5-qrcode
+      เพราะเราสร้าง UI เอง
+    */
 
-    .controls {
+    #reader__dashboard_section {
+      display: none !important;
+    }
+
+    #reader__status_span {
+      display: none !important;
+    }
+
+    #reader__header_message {
+      display: none !important;
+    }
+
+    /* =========================================================
+       SCAN FRAME
+    ========================================================= */
+
+    .scan-overlay {
+      position: absolute;
+
+      inset: 0;
+
+      pointer-events: none;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .scan-box {
+      position: relative;
+
+      width: min(82%, 700px);
+
+      height: clamp(100px, 22vw, 190px);
+
+      border: 3px solid #22c55e;
+
+      border-radius: 14px;
+
+      box-shadow:
+        0 0 0 9999px rgba(0, 0, 0, 0.35);
+
+      transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+    }
+
+    .scan-box::before {
+      content: "";
+
+      position: absolute;
+
+      left: 12px;
+      right: 12px;
+
+      top: 50%;
+
+      height: 2px;
+
+      background: rgba(34, 197, 94, 0.8);
+
+      box-shadow:
+        0 0 8px rgba(34, 197, 94, 0.8);
+
+      animation: scanLine 2s linear infinite;
+    }
+
+    @keyframes scanLine {
+      0% {
+        transform: translateY(-35px);
+      }
+
+      50% {
+        transform: translateY(35px);
+      }
+
+      100% {
+        transform: translateY(-35px);
+      }
+    }
+
+    .scan-label {
+      position: absolute;
+
+      left: 50%;
+      bottom: -42px;
+
+      transform: translateX(-50%);
+
+      white-space: nowrap;
+
+      color: #ffffff;
+
+      font-size: 13px;
+      font-weight: 700;
+
+      text-shadow:
+        0 1px 4px rgba(0, 0, 0, 0.8);
+    }
+
+    /* =========================================================
+       CAMERA PLACEHOLDER
+    ========================================================= */
+
+    .camera-placeholder {
+      position: absolute;
+
+      inset: 0;
 
       display: flex;
 
-      flex-wrap: wrap;
+      flex-direction: column;
 
-      gap: 8px;
+      align-items: center;
+      justify-content: center;
 
-      margin-top: 15px;
+      gap: 10px;
 
+      color: #ffffff;
+
+      background:
+        linear-gradient(
+          135deg,
+          #111827,
+          #030712
+        );
+
+      z-index: 2;
+
+      text-align: center;
+
+      padding: 20px;
     }
 
+    .camera-placeholder-icon {
+      font-size: 48px;
+    }
 
-    button {
+    .camera-placeholder-title {
+      font-size: 18px;
+      font-weight: 800;
+    }
 
+    .camera-placeholder-text {
+      color: #d1d5db;
+
+      font-size: 13px;
+
+      max-width: 360px;
+
+      line-height: 1.6;
+    }
+
+    /* =========================================================
+       STATUS
+    ========================================================= */
+
+    .status {
+      display: flex;
+
+      align-items: center;
+      gap: 9px;
+
+      padding: 12px 14px;
+
+      margin-top: 14px;
+
+      border-radius: 12px;
+
+      font-size: 14px;
+
+      font-weight: 700;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+
+      border-radius: 50%;
+
+      flex: 0 0 auto;
+    }
+
+    .status-idle {
+      background: #f3f4f6;
+      color: #4b5563;
+    }
+
+    .status-idle .status-dot {
+      background: #9ca3af;
+    }
+
+    .status-loading {
+      background: var(--warning-bg);
+      color: #92400e;
+    }
+
+    .status-loading .status-dot {
+      background: var(--warning);
+
+      animation: pulse 1s infinite;
+    }
+
+    .status-running {
+      background: var(--success-bg);
+      color: #166534;
+    }
+
+    .status-running .status-dot {
+      background: var(--success);
+
+      animation: pulse 1.5s infinite;
+    }
+
+    .status-success {
+      background: var(--success-bg);
+      color: #166534;
+    }
+
+    .status-success .status-dot {
+      background: var(--success);
+    }
+
+    .status-error {
+      background: var(--danger-bg);
+      color: #991b1b;
+    }
+
+    .status-error .status-dot {
+      background: var(--danger);
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.35;
+      }
+
+      100% {
+        opacity: 1;
+      }
+    }
+
+    /* =========================================================
+       BUTTONS
+    ========================================================= */
+
+    .controls {
+      display: grid;
+
+      grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+      gap: 10px;
+
+      margin-top: 14px;
+    }
+
+    .btn {
       border: 0;
 
-      border-radius: 9px;
+      border-radius: 12px;
 
-      padding: 10px 15px;
+      padding: 13px 14px;
 
-      font-size: .9rem;
-
-      font-weight: 600;
+      min-height: 48px;
 
       cursor: pointer;
 
+      font-size: 14px;
+
+      font-weight: 800;
+
+      display: flex;
+
+      align-items: center;
+      justify-content: center;
+
+      gap: 7px;
+
+      transition:
+        transform 0.12s ease,
+        opacity 0.12s ease,
+        background 0.12s ease;
     }
 
-
-    .primary {
-
-      background: #0d6efd;
-
-      color: white;
-
+    .btn:active {
+      transform: scale(0.98);
     }
 
+    .btn:disabled {
+      opacity: 0.45;
 
-    .danger {
+      cursor: not-allowed;
 
-      background: #dc3545;
-
-      color: white;
-
+      transform: none;
     }
 
-
-    .secondary {
-
-      background: #6c757d;
-
-      color: white;
-
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
     }
 
-
-    .success {
-
-      background: #198754;
-
-      color: white;
-
+    .btn-primary:hover {
+      background: var(--primary-dark);
     }
 
-
-    .warning {
-
-      background: #ffc107;
-
-      color: #212529;
-
+    .btn-danger {
+      background: #ef4444;
+      color: #ffffff;
     }
 
+    .btn-secondary {
+      background: #6b7280;
+      color: #ffffff;
+    }
+
+    .btn-warning {
+      background: #f59e0b;
+      color: #111827;
+    }
+
+    .btn-success {
+      background: #059669;
+      color: #ffffff;
+    }
+
+    .btn-outline {
+      background: transparent;
+
+      color: var(--primary);
+
+      border: 2px solid var(--primary);
+    }
+
+    /* =========================================================
+       ZOOM
+    ========================================================= */
+
+    .zoom-panel {
+      margin-top: 14px;
+
+      padding: 13px 14px;
+
+      border-radius: 12px;
+
+      background: #f9fafb;
+
+      border: 1px solid var(--border);
+    }
+
+    .zoom-header {
+      display: flex;
+
+      justify-content: space-between;
+      align-items: center;
+
+      gap: 10px;
+
+      margin-bottom: 8px;
+    }
+
+    .zoom-title {
+      font-size: 13px;
+
+      font-weight: 800;
+    }
+
+    .zoom-value {
+      font-size: 13px;
+
+      font-weight: 800;
+
+      color: var(--primary);
+    }
+
+    #zoomRange {
+      width: 100%;
+    }
+
+    /* =========================================================
+       RESULT
+    ========================================================= */
+
+    .result-empty {
+      text-align: center;
+
+      padding: 28px 10px;
+
+      color: var(--muted);
+
+      font-size: 14px;
+    }
+
+    .result-box {
+      padding: 18px;
+
+      border-radius: 14px;
+
+      background: #ecfdf5;
+
+      border: 2px solid #22c55e;
+    }
+
+    .result-type {
+      color: #15803d;
+
+      font-size: 13px;
+
+      font-weight: 800;
+
+      margin-bottom: 6px;
+    }
+
+    .result-format {
+      font-size: 24px;
+
+      font-weight: 900;
+
+      margin-bottom: 14px;
+
+      word-break: break-word;
+    }
+
+    .result-divider {
+      height: 1px;
+
+      background: rgba(21, 128, 61, 0.25);
+
+      margin-bottom: 14px;
+    }
+
+    .result-label {
+      color: #15803d;
+
+      font-size: 12px;
+
+      font-weight: 700;
+
+      margin-bottom: 5px;
+    }
+
+    .result-value {
+      font-size: 26px;
+
+      font-weight: 900;
+
+      word-break: break-all;
+
+      line-height: 1.35;
+    }
+
+    .result-time {
+      margin-top: 12px;
+
+      color: #166534;
+
+      font-size: 11px;
+    }
+
+    /* =========================================================
+       INFO TABLE
+    ========================================================= */
+
+    .info-table {
+      width: 100%;
+
+      border-collapse: collapse;
+    }
+
+    .info-table tr {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .info-table tr:last-child {
+      border-bottom: 0;
+    }
+
+    .info-table td {
+      padding: 11px 4px;
+
+      font-size: 13px;
+    }
+
+    .info-table td:first-child {
+      width: 42%;
+
+      color: var(--muted);
+    }
+
+    .info-table td:last-child {
+      font-weight: 700;
+
+      word-break: break-word;
+    }
+
+    /* =========================================================
+       DEVICE LIST
+    ========================================================= */
+
+    .camera-select {
+      width: 100%;
+
+      border: 1px solid var(--border);
+
+      background: #ffffff;
+
+      color: var(--text);
+
+      border-radius: 10px;
+
+      padding: 11px;
+
+      margin-bottom: 10px;
+    }
+
+    /* =========================================================
+       FILE SCAN
+    ========================================================= */
+
+    .file-section {
+      margin-top: 16px;
+    }
 
     .file-input {
+      display: none;
+    }
+
+    .file-preview {
+      width: 100%;
+
+      max-height: 260px;
+
+      object-fit: contain;
+
+      background: #111827;
+
+      border-radius: 12px;
+
+      margin-top: 12px;
 
       display: none;
-
     }
 
+    /* =========================================================
+       PRIVACY
+    ========================================================= */
 
-    .note {
+    .privacy {
+      margin-top: 16px;
 
-      color: #aaa;
+      padding: 16px;
 
-      font-size: .78rem;
+      border-radius: 14px;
 
-      line-height: 1.5;
+      background: #f9fafb;
 
-      margin-top: 15px;
+      border: 1px solid var(--border);
 
+      font-size: 12px;
+
+      line-height: 1.7;
+
+      color: var(--muted);
     }
 
+    .privacy strong {
+      color: var(--text);
+    }
 
-    @media (max-width: 600px) {
+    /* =========================================================
+       FOOTER
+    ========================================================= */
 
-      .controls button {
+    .footer {
+      text-align: center;
 
-        width: 100%;
+      padding: 20px 10px 8px;
 
+      color: var(--muted);
+
+      font-size: 11px;
+    }
+
+    /* =========================================================
+       RESPONSIVE : TABLET
+    ========================================================= */
+
+    @media (max-width: 991px) {
+
+      .app {
+        max-width: 900px;
+
+        padding: 14px;
       }
 
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .camera-wrapper {
+        min-height: 340px;
+      }
+
+      .scan-box {
+        width: 80%;
+
+        height: 150px;
+      }
+    }
+
+    /* =========================================================
+       RESPONSIVE : MOBILE
+    ========================================================= */
+
+    @media (max-width: 575px) {
+
+      .app {
+        padding:
+          10px
+          10px
+          calc(10px + env(safe-area-inset-bottom));
+      }
+
+      .header {
+        padding: 16px;
+
+        border-radius: 14px;
+      }
+
+      .header-title {
+        font-size: 19px;
+      }
+
+      .header-subtitle {
+        font-size: 13px;
+      }
+
+      .main-grid {
+        gap: 10px;
+      }
+
+      .card {
+        border-radius: 14px;
+      }
+
+      .card-header {
+        padding: 14px 14px 8px;
+      }
+
+      .card-body {
+        padding: 12px 14px 16px;
+      }
+
+      .camera-wrapper {
+        min-height: 300px;
+
+        border-radius: 12px;
+      }
+
+      .scan-box {
+        width: 88%;
+
+        height: 115px;
+
+        border-width: 2px;
+      }
+
+      .scan-label {
+        bottom: -34px;
+
+        font-size: 11px;
+      }
+
+      .controls {
+        grid-template-columns:
+          repeat(2, minmax(0, 1fr));
+
+        gap: 8px;
+      }
+
+      .btn {
+        min-height: 50px;
+
+        padding: 10px 8px;
+
+        font-size: 13px;
+      }
+
+      .result-format {
+        font-size: 21px;
+      }
+
+      .result-value {
+        font-size: 23px;
+      }
+
+      .info-table td {
+        padding: 9px 3px;
+
+        font-size: 12px;
+      }
+    }
+
+    /* =========================================================
+       LANDSCAPE MOBILE
+    ========================================================= */
+
+    @media (max-height: 500px) and (orientation: landscape) {
+
+      .camera-wrapper {
+        min-height: 230px;
+
+        max-height: 70vh;
+      }
+
+      #reader video {
+        max-height: 70vh;
+      }
+
+      .scan-box {
+        width: 62%;
+
+        height: 90px;
+      }
+    }
+
+    /* =========================================================
+       DARK MODE
+    ========================================================= */
+
+    @media (prefers-color-scheme: dark) {
+
+      :root {
+        --bg: #0b0f14;
+        --card: #111827;
+        --text: #f3f4f6;
+        --muted: #9ca3af;
+        --border: #1f2937;
+
+        --success-bg: #052e1a;
+        --warning-bg: #3b2605;
+        --danger-bg: #3b0a0a;
+      }
+
+      .header-badge {
+        background: #172554;
+        color: #93c5fd;
+      }
+
+      .status-idle {
+        background: #1f2937;
+        color: #d1d5db;
+      }
+
+      .zoom-panel {
+        background: #0f172a;
+      }
+
+      .camera-select {
+        background: #111827;
+        color: #f3f4f6;
+      }
+
+      .privacy {
+        background: #0f172a;
+      }
+
+      .result-box {
+        background: #052e1a;
+      }
     }
 
   </style>
-
 </head>
-
 
 <body>
 
+<div class="app">
 
-<div class="container">
+  <!-- =======================================================
+       HEADER
+  ======================================================== -->
 
+  <header class="header">
 
-  <h1>
+    <h1 class="header-title">
+      📊 Barcode Camera Test
+    </h1>
 
-    <span>📷</span>
+    <p class="header-subtitle">
+      ระบบทดสอบกล้องสำหรับอ่าน Barcode แบบ 1D
+    </p>
 
-    Barcode Camera
-
-  </h1>
-
-
-  <div
-    id="status"
-    class="status"
-  >
-
-    กำลังเตรียมระบบ...
-
-  </div>
-
-
-  <div
-    id="reader"
-    class="reader"
-  >
-  </div>
-
-
-  <div class="controls">
-
-
-    <button
-      class="primary"
-      onclick="startScanner()"
-    >
-
-      📷 เปิดกล้อง
-
-    </button>
-
-
-    <button
-      class="danger"
-      onclick="stopScanner()"
-    >
-
-      ⏹ ปิดกล้อง
-
-    </button>
-
-
-    <button
-      id="switchButton"
-      class="secondary"
-      onclick="switchCamera()"
-    >
-
-      🔄 เปลี่ยนกล้อง
-
-    </button>
-
-
-    <button
-      id="torchButton"
-      class="warning"
-      onclick="toggleTorch()"
-      style="display:none"
-    >
-
-      🔦 ไฟฉาย
-
-    </button>
-
-
-    <button
-      id="captureButton"
-      class="success"
-      onclick="document.getElementById('fileInput').click()"
-    >
-
-      🖼 อ่านจากรูป
-
-    </button>
-
-
-  </div>
-
-
-  <input
-    id="fileInput"
-    class="file-input"
-    type="file"
-    accept="image/*"
-    capture="environment"
-  >
-
-
-  <div
-    id="result"
-    class="result"
-  >
-
-    <div class="result-type">
-
-      Barcode
-
+    <div class="header-badge">
+      ▌ รองรับเฉพาะ Barcode 1D
     </div>
 
-
-    <div
-      id="resultFormat"
-      class="result-value"
-    >
-
-      -
-
-    </div>
+  </header>
 
 
-    <hr>
+  <!-- =======================================================
+       MAIN
+  ======================================================== -->
+
+  <main class="main-grid">
 
 
-    <div class="result-type">
+    <!-- =====================================================
+         LEFT : CAMERA
+    ====================================================== -->
 
-      ค่า
+    <section class="card camera-card">
 
-    </div>
+      <div class="card-header">
+        📷 กล้อง
+      </div>
 
+      <div class="card-body">
 
-    <div
-      id="resultValue"
-      class="result-value"
-    >
+        <div class="camera-wrapper">
 
-      -
+          <div id="reader"></div>
 
-    </div>
+          <div
+            id="cameraPlaceholder"
+            class="camera-placeholder"
+          >
 
-  </div>
+            <div class="camera-placeholder-icon">
+              📷
+            </div>
 
+            <div class="camera-placeholder-title">
+              กล้องยังไม่ทำงาน
+            </div>
 
-  <div class="camera-info">
+            <div class="camera-placeholder-text">
+              กดปุ่ม "เปิดกล้อง"
+              เพื่อเริ่มสแกน Barcode
+            </div>
 
+          </div>
 
-    <strong>
-      ข้อมูลกล้อง
-    </strong>
+          <!-- Scan Area -->
 
+          <div
+            id="scanOverlay"
+            class="scan-overlay"
+            style="display:none;"
+          >
 
-    <table class="mt-2">
+            <div class="scan-box">
 
+              <div class="scan-label">
+                วาง Barcode ในกรอบ
+              </div>
 
-      <tr>
+            </div>
 
-        <td>Camera</td>
+          </div>
 
-        <td id="cameraInfo">-</td>
-
-      </tr>
-
-
-      <tr>
-
-        <td>Resolution</td>
-
-        <td id="resolutionInfo">-</td>
-
-      </tr>
-
-
-      <tr>
-
-        <td>FPS</td>
-
-        <td id="fpsInfo">-</td>
-
-      </tr>
-
-
-      <tr>
-
-        <td>Facing</td>
-
-        <td id="facingInfo">-</td>
-
-      </tr>
+        </div>
 
 
-      <tr>
+        <!-- Scanner Status -->
 
-        <td>Zoom</td>
+        <div
+          id="scannerStatus"
+          class="status status-idle"
+        >
 
-        <td id="zoomInfo">-</td>
+          <span class="status-dot"></span>
 
-      </tr>
+          <span id="scannerStatusText">
+            กล้องยังไม่ทำงาน
+          </span>
 
-
-      <tr>
-
-        <td>Torch</td>
-
-        <td id="torchInfo">-</td>
-
-      </tr>
+        </div>
 
 
-    </table>
+        <!-- Camera Controls -->
+
+        <div class="controls">
+
+          <button
+            id="btnStart"
+            class="btn btn-primary"
+            type="button"
+          >
+            📷 เปิดกล้อง
+          </button>
+
+          <button
+            id="btnStop"
+            class="btn btn-danger"
+            type="button"
+            disabled
+          >
+            ⏹️ ปิดกล้อง
+          </button>
+
+          <button
+            id="btnSwitch"
+            class="btn btn-secondary"
+            type="button"
+            disabled
+          >
+            🔄 เปลี่ยนกล้อง
+          </button>
+
+          <button
+            id="btnTorch"
+            class="btn btn-warning"
+            type="button"
+            disabled
+          >
+            🔦 ไฟฉาย
+          </button>
+
+        </div>
 
 
-  </div>
+        <!-- Zoom -->
+
+        <div
+          id="zoomPanel"
+          class="zoom-panel"
+          style="display:none;"
+        >
+
+          <div class="zoom-header">
+
+            <span class="zoom-title">
+              🔍 Zoom
+            </span>
+
+            <span
+              id="zoomValue"
+              class="zoom-value"
+            >
+              1×
+            </span>
+
+          </div>
+
+          <input
+            id="zoomRange"
+            type="range"
+            min="1"
+            max="1"
+            step="0.1"
+            value="1"
+          >
+
+        </div>
 
 
-  <div class="note">
+        <!-- Camera Selection -->
 
-    ระบบนี้รองรับเฉพาะ Barcode แบบ 1D
+        <div
+          id="cameraSelectPanel"
+          style="display:none; margin-top:14px;"
+        >
+
+          <select
+            id="cameraSelect"
+            class="camera-select"
+          >
+          </select>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         RIGHT : RESULT / INFO
+    ====================================================== -->
+
+    <aside>
+
+
+      <!-- ===================================================
+           RESULT
+      ==================================================== -->
+
+      <section class="card">
+
+        <div class="card-header">
+          ▌ ผลการอ่าน Barcode
+        </div>
+
+        <div class="card-body">
+
+          <div
+            id="resultEmpty"
+            class="result-empty"
+          >
+            ยังไม่มีข้อมูล Barcode
+          </div>
+
+          <div
+            id="resultBox"
+            class="result-box"
+            style="display:none;"
+          >
+
+            <div class="result-type">
+              Barcode
+            </div>
+
+            <div
+              id="resultFormat"
+              class="result-format"
+            >
+              CODE_128
+            </div>
+
+            <div class="result-divider"></div>
+
+            <div class="result-label">
+              ค่า
+            </div>
+
+            <div
+              id="resultValue"
+              class="result-value"
+            >
+              -
+            </div>
+
+            <div
+              id="resultTime"
+              class="result-time"
+            >
+              -
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- ===================================================
+           CAMERA INFORMATION
+      ==================================================== -->
+
+      <section
+        class="card"
+        style="margin-top:16px;"
+      >
+
+        <div class="card-header">
+          ℹ️ ข้อมูลกล้อง
+        </div>
+
+        <div class="card-body">
+
+          <table class="info-table">
+
+            <tr>
+              <td>อุปกรณ์</td>
+              <td id="infoDevice">-</td>
+            </tr>
+
+            <tr>
+              <td>Browser</td>
+              <td id="infoBrowser">-</td>
+            </tr>
+
+            <tr>
+              <td>Camera</td>
+              <td id="infoCamera">-</td>
+            </tr>
+
+            <tr>
+              <td>Resolution</td>
+              <td id="infoResolution">-</td>
+            </tr>
+
+            <tr>
+              <td>FPS</td>
+              <td id="infoFps">-</td>
+            </tr>
+
+            <tr>
+              <td>Facing</td>
+              <td id="infoFacing">-</td>
+            </tr>
+
+            <tr>
+              <td>Zoom</td>
+              <td id="infoZoom">-</td>
+            </tr>
+
+            <tr>
+              <td>Torch</td>
+              <td id="infoTorch">-</td>
+            </tr>
+
+          </table>
+
+        </div>
+
+      </section>
+
+
+      <!-- ===================================================
+           READ FROM IMAGE
+      ==================================================== -->
+
+      <section
+        class="card file-section"
+      >
+
+        <div class="card-header">
+          🖼️ อ่าน Barcode จากรูป
+        </div>
+
+        <div class="card-body">
+
+          <label
+            for="fileInput"
+            class="btn btn-success"
+            style="width:100%; cursor:pointer;"
+          >
+            🖼️ เลือกรูปภาพ
+          </label>
+
+          <input
+            id="fileInput"
+            class="file-input"
+            type="file"
+            accept="image/*"
+          >
+
+          <img
+            id="filePreview"
+            class="file-preview"
+            alt="Barcode image preview"
+          >
+
+          <div
+            id="fileStatus"
+            style="
+              margin-top:10px;
+              font-size:12px;
+              color:var(--muted);
+            "
+          >
+            รองรับการอ่าน Barcode จากไฟล์ภาพ
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- ===================================================
+           PRIVACY
+      ==================================================== -->
+
+      <section class="privacy">
+
+        <strong>
+          🔒 ความเป็นส่วนตัว
+        </strong>
+
+        <br>
+
+        การประมวลผลภาพและ Barcode
+        ทำงานภายใน Browser
+
+        <br>
+
+        ไม่มีการอัปโหลดภาพไปยัง Server
+
+        <br><br>
+
+        <strong>
+          ระบบรองรับเฉพาะ Barcode แบบ 1D
+        </strong>
+
+        <br>
+
+        QR Code, Data Matrix,
+        PDF417 และ Barcode แบบ 2D
+        จะไม่ถูกนำมาใช้ในการอ่าน
+
+      </section>
+
+    </aside>
+
+  </main>
+
+
+  <footer class="footer">
+
+    Barcode Camera Test
+
     <br>
 
-    QR Code, Data Matrix และ PDF417 จะไม่ถูกนำมาใช้ในการอ่าน
+    Client-side Barcode Testing
 
-    <br><br>
-
-    การประมวลผลภาพและ Barcode ทำงานภายใน Browser
-    ไม่มีการอัปโหลดภาพไปยัง Server
-
-  </div>
-
+  </footer>
 
 </div>
 
 
+<!-- =========================================================
+     JAVASCRIPT
+========================================================= -->
+
 <script>
 
+  /* ===========================================================
+     CONFIGURATION
+  =========================================================== */
 
-/****************************************************
- * BARCODE FORMATS
- ****************************************************/
+  const BARCODE_FORMATS = [
 
+    Html5QrcodeSupportedFormats.CODE_128,
 
-/*
- * สำคัญมาก
- *
- * QR_CODE ไม่อยู่ในรายการนี้
- *
- * ดังนั้น Decoder จะได้รับเฉพาะ 1D Barcode
- */
+    Html5QrcodeSupportedFormats.CODE_39,
 
-const BARCODE_FORMATS = [
+    Html5QrcodeSupportedFormats.CODE_93,
 
-  Html5QrcodeSupportedFormats.EAN_13,
+    Html5QrcodeSupportedFormats.CODABAR,
 
-  Html5QrcodeSupportedFormats.EAN_8,
+    Html5QrcodeSupportedFormats.EAN_13,
 
-  Html5QrcodeSupportedFormats.UPC_A,
+    Html5QrcodeSupportedFormats.EAN_8,
 
-  Html5QrcodeSupportedFormats.UPC_E,
+    Html5QrcodeSupportedFormats.ITF,
 
-  Html5QrcodeSupportedFormats.CODE_128,
+    Html5QrcodeSupportedFormats.UPC_A,
 
-  Html5QrcodeSupportedFormats.CODE_39,
-
-  Html5QrcodeSupportedFormats.CODE_93,
-
-  Html5QrcodeSupportedFormats.CODABAR,
-
-  Html5QrcodeSupportedFormats.ITF
-
-];
-
-
-
-/****************************************************
- * GLOBAL
- ****************************************************/
-
-let scanner = null;
-
-let cameras = [];
-
-let currentCameraIndex = 0;
-
-let currentCameraId = null;
-
-let scannerRunning = false;
-
-let torchOn = false;
-
-let lastValue = '';
-
-let lastScanTimestamp = 0;
-
-
-
-/****************************************************
- * FORMAT NAME
- ****************************************************/
-
-const FORMAT_NAMES = {};
-
-
-FORMAT_NAMES[
-  Html5QrcodeSupportedFormats.EAN_13
-] = 'EAN-13';
-
-
-FORMAT_NAMES[
-  Html5QrcodeSupportedFormats.EAN_8
-] = 'EAN-8';
-
-
-FORMAT_NAMES[
-  Html5QrcodeSupportedFormats.UPC_A
-] = 'UPC-A';
-
-
-FORMAT_NAMES[
-  Html5QrcodeSupportedFormats.UPC_E
-] = 'UPC-E';
-
-
-FORMAT_NAMES[
-  Html5QrcodeSupportedFormats.CODE_128
-] = 'CODE-128';
-
-
-FORMAT_NAMES[
-  Html5QrcodeSupportedFormats.CODE_39
-] = 'CODE-39';
-
-
-FORMAT_NAMES[
-  Html5QrcodeSupportedFormats.CODE_93
-] = 'CODE-93';
-
-
-FORMAT_NAMES[
-  Html5QrcodeSupportedFormats.CODABAR
-] = 'CODABAR';
-
-
-FORMAT_NAMES[
-  Html5QrcodeSupportedFormats.ITF
-] = 'ITF';
-
-
-
-/****************************************************
- * INIT
- ****************************************************/
-
-window.addEventListener(
-  'load',
-  function() {
-
-    sendToParent(
-      'CAMERA_READY',
-      {}
-    );
-
-
-    setStatus(
-      'พร้อมสำหรับการเปิดกล้อง',
-      'normal'
-    );
-
-  }
-);
-
-
-
-/****************************************************
- * START SCANNER
- ****************************************************/
-
-async function startScanner() {
-
-
-  try {
-
-
-    setStatus(
-      'กำลังขอสิทธิ์ใช้งานกล้อง...',
-      'normal'
-    );
-
-
-    /*
-     * สร้าง Scanner
-     */
-
-    if (!scanner) {
-
-      scanner =
-        new Html5Qrcode(
-          'reader',
-          {
-
-            formatsToSupport:
-              BARCODE_FORMATS,
-
-            /*
-             * เปิด Native BarcodeDetector
-             * ถ้า Browser รองรับ
-             */
-
-            useBarCodeDetectorIfSupported:
-              true,
-
-            verbose: false
-
-          }
-        );
-
-    }
-
-
-    /*
-     * ขอรายการ Camera
-     *
-     * API นี้จะขอ Permission
-     */
-
-    cameras =
-      await Html5Qrcode.getCameras();
-
-
-    if (
-      !cameras ||
-      cameras.length === 0
-    ) {
-
-      throw new Error(
-        'ไม่พบกล้อง'
-      );
-
-    }
-
-
-    /*
-     * เลือกกล้องหลัง
-     */
-
-    currentCameraIndex =
-      findBestCamera(
-        cameras
-      );
-
-
-    currentCameraId =
-      cameras[
-        currentCameraIndex
-      ].id;
-
-
-    /*
-     * ตั้งค่าตามอุปกรณ์
-     */
-
-    const constraints =
-      getCameraConstraints();
-
-
-    /*
-     * Configuration
-     */
-
-    const config = {
-
-      fps: 10,
-
-      aspectRatio: 16 / 9,
-
-      qrbox:
-        function(
-          width,
-          height
-        ) {
-
-          let boxWidth =
-            Math.floor(
-              width * 0.88
-            );
-
-
-          let boxHeight =
-            Math.floor(
-              height * 0.32
-            );
-
-
-          boxWidth =
-            Math.max(
-              280,
-              Math.min(
-                boxWidth,
-                1000
-              )
-            );
-
-
-          boxHeight =
-            Math.max(
-              100,
-              Math.min(
-                boxHeight,
-                350
-              )
-            );
-
-
-          return {
-
-            width:
-              boxWidth,
-
-            height:
-              boxHeight
-
-          };
-
-        },
-
-
-      videoConstraints:
-        constraints
-
-    };
-
-
-    /*
-     * เริ่มกล้อง
-     */
-
-    await scanner.start(
-
-      currentCameraId,
-
-      config,
-
-      onScanSuccess,
-
-      onScanFailure
-
-    );
-
-
-    scannerRunning = true;
-
-
-    setStatus(
-      'เปิดกล้องแล้ว กำลังค้นหา Barcode...',
-      'success'
-    );
-
-
-    /*
-     * อ่าน Camera Settings
-     */
-
-    setTimeout(
-      updateCameraInfo,
-      700
-    );
-
-
-  }
-  catch (error) {
-
-
-    console.error(
-      error
-    );
-
-
-    setStatus(
-      getCameraErrorMessage(
-        error
-      ),
-      'error'
-    );
-
-
-    sendToParent(
-      'CAMERA_ERROR',
-      {},
-      getCameraErrorMessage(
-        error
-      )
-    );
-
-  }
-
-}
-
-
-
-/****************************************************
- * CAMERA CONSTRAINTS
- ****************************************************/
-
-function getCameraConstraints() {
-
-
-  /*
-   * เริ่มต้นด้วย 1920 × 1080
-   *
-   * เป็น ideal ไม่ใช่ exact
-   */
-
-  return {
-
-    width: {
-
-      ideal: 1920
-
-    },
-
-
-    height: {
-
-      ideal: 1080
-
-    },
-
-
-    frameRate: {
-
-      ideal: 30,
-
-      min: 15
-
-    },
-
-
-    facingMode: {
-
-      ideal: 'environment'
-
-    }
-
-  };
-
-}
-
-
-
-/****************************************************
- * FIND BEST CAMERA
- ****************************************************/
-
-function findBestCamera(
-  list
-) {
-
-
-  const keywords = [
-
-    'back',
-    'rear',
-    'environment',
-    'หลัง',
-    'ด้านหลัง',
-    'main',
-    'wide'
+    Html5QrcodeSupportedFormats.UPC_E
 
   ];
 
 
-  for (
-    let i = 0;
-    i < list.length;
-    i++
-  ) {
+  /*
+    Scanner configuration
 
+    เราตั้งใจไม่ใช้ fps สูงเกินไป
+    เพราะการอ่าน Barcode ไม่จำเป็นต้องประมวลผลทุก frame
 
-    const label =
-      (
-        list[i].label ||
-        ''
-      ).toLowerCase();
+    10 FPS = ประมวลผลประมาณทุก 100ms
+  */
 
-
-    for (
-      const keyword
-      of keywords
-    ) {
-
-
-      if (
-        label.includes(
-          keyword
-        )
-      ) {
-
-        return i;
-
-      }
-
-    }
-
-  }
-
-
-  return 0;
-
-}
-
-
-
-/****************************************************
- * SCAN SUCCESS
- ****************************************************/
-
-async function onScanSuccess(
-  decodedText,
-  decodedResult
-) {
-
-
-  const now =
-    Date.now();
+  const SCANNER_FPS = 10;
 
 
   /*
-   * ป้องกันอ่านซ้ำ
-   */
+    ต้องการใช้ BarcodeDetector หรือไม่
 
-  if (
-    decodedText === lastValue &&
-    now - lastScanTimestamp < 2000
-  ) {
+    เราปิดไว้เพื่อให้พฤติกรรมของ Scanner
+    สม่ำเสมอระหว่าง Browser
 
-    return;
+    และเพื่อให้ formatsToSupport
+    ทำงานเป็นชุด 1D ที่เรากำหนด
+  */
 
-  }
-
-
-  lastValue =
-    decodedText;
+  const USE_NATIVE_BARCODE_DETECTOR = false;
 
 
-  lastScanTimestamp =
-    now;
+  /* ===========================================================
+     GLOBAL STATE
+  =========================================================== */
+
+  let html5QrCode = null;
+
+  let cameras = [];
+
+  let currentCameraIndex = 0;
+
+  let currentCameraId = null;
+
+  let isScanning = false;
+
+  let isTorchOn = false;
+
+  let lastBarcode = "";
+
+  let lastScanTime = 0;
+
+  let currentCapabilities = null;
+
+  let currentSettings = null;
 
 
-  /*
-   * ดึง Barcode Format
-   */
+  /* ===========================================================
+     ELEMENTS
+  =========================================================== */
 
-  let format =
-    'Barcode';
+  const el = id => document.getElementById(id);
 
+  const btnStart = el("btnStart");
+  const btnStop = el("btnStop");
+  const btnSwitch = el("btnSwitch");
+  const btnTorch = el("btnTorch");
 
-  try {
+  const cameraPlaceholder = el("cameraPlaceholder");
+  const scanOverlay = el("scanOverlay");
 
+  const scannerStatus = el("scannerStatus");
+  const scannerStatusText = el("scannerStatusText");
 
-    const rawFormat =
-      decodedResult &&
-      decodedResult.result &&
-      decodedResult.result.format;
+  const zoomPanel = el("zoomPanel");
+  const zoomRange = el("zoomRange");
+  const zoomValue = el("zoomValue");
 
+  const cameraSelectPanel = el("cameraSelectPanel");
+  const cameraSelect = el("cameraSelect");
 
-    if (rawFormat) {
+  const resultEmpty = el("resultEmpty");
+  const resultBox = el("resultBox");
 
+  const resultFormat = el("resultFormat");
+  const resultValue = el("resultValue");
+  const resultTime = el("resultTime");
 
-      if (
-        rawFormat.formatName
-      ) {
-
-        format =
-          rawFormat.formatName;
-
-      }
-      else if (
-        typeof rawFormat ===
-        'number'
-      ) {
-
-        format =
-          FORMAT_NAMES[
-            rawFormat
-          ] ||
-          'Barcode';
-
-      }
-
-    }
-
-  }
-  catch (error) {
-
-    console.warn(
-      error
-    );
-
-  }
+  const fileInput = el("fileInput");
+  const filePreview = el("filePreview");
+  const fileStatus = el("fileStatus");
 
 
-  /*
-   * สำคัญ
-   *
-   * ตรวจสอบ format อีกชั้น
-   */
+  /* ===========================================================
+     INITIALIZATION
+  =========================================================== */
 
-  if (
-    !isAllowedFormat(
-      decodedResult
-    )
-  ) {
+  document.addEventListener(
+    "DOMContentLoaded",
+    () => {
 
-    console.warn(
-      'Ignored unsupported format:',
-      decodedResult
-    );
+      el("infoBrowser").textContent =
+        detectBrowser();
 
-    return;
+      el("infoDevice").textContent =
+        detectDevice();
 
-  }
+      btnStart.addEventListener(
+        "click",
+        startCamera
+      );
 
+      btnStop.addEventListener(
+        "click",
+        stopCamera
+      );
 
-  /*
-   * แสดงผล
-   */
+      btnSwitch.addEventListener(
+        "click",
+        switchCamera
+      );
 
-  showResult(
-    format,
-    decodedText
-  );
+      btnTorch.addEventListener(
+        "click",
+        toggleTorch
+      );
 
+      zoomRange.addEventListener(
+        "input",
+        changeZoom
+      );
 
-  /*
-   * ส่งกลับ GAS
-   */
+      cameraSelect.addEventListener(
+        "change",
+        async event => {
 
-  const cameraInfo =
-    getCurrentCameraInfo();
+          const index =
+            Number(event.target.value);
 
+          if (
+            Number.isInteger(index) &&
+            cameras[index]
+          ) {
 
-  sendToParent(
-    'BARCODE_RESULT',
-    {
+            currentCameraIndex = index;
 
-      format:
-        format,
+            await restartWithCamera(
+              cameras[index].id
+            );
 
-      value:
-        decodedText,
+          }
 
-      camera:
-        cameraInfo
+        }
+      );
+
+      fileInput.addEventListener(
+        "change",
+        handleImageFile
+      );
 
     }
   );
 
 
-  /*
-   * ส่งข้อมูล Camera ด้วย
-   */
+  /* ===========================================================
+     DEVICE / BROWSER DETECTION
+  =========================================================== */
 
-  sendCameraInfo();
+  function detectBrowser() {
 
+    const ua =
+      navigator.userAgent;
 
-  /*
-   * สั่น
-   */
-
-  if (
-    navigator.vibrate
-  ) {
-
-    navigator.vibrate(
-      100
-    );
-
-  }
-
-}
-
-
-
-/****************************************************
- * SCAN FAILURE
- ****************************************************/
-
-function onScanFailure(
-  error
-) {
-
-  /*
-   * ไม่ทำอะไร
-   *
-   * เพราะ callback นี้ถูกเรียกบ่อยมาก
-   */
-
-}
-
-
-
-/****************************************************
- * CHECK FORMAT
- ****************************************************/
-
-function isAllowedFormat(
-  decodedResult
-) {
-
-
-  if (
-    !decodedResult ||
-    !decodedResult.result
-  ) {
-
-    /*
-     * กรณี Browser คืน result
-     * ไม่ครบ
-     *
-     * ไม่ reject ทันที
-     * เพราะบาง implementation
-     * อาจคืนข้อมูลไม่เหมือนกัน
-     */
-
-    return true;
-
-  }
-
-
-  const format =
-    decodedResult.result.format;
-
-
-  if (
-    !format
-  ) {
-
-    return true;
-
-  }
-
-
-  /*
-   * format.numeric
-   */
-
-  if (
-    typeof format ===
-    'number'
-  ) {
-
-    return BARCODE_FORMATS.includes(
-      format
-    );
-
-  }
-
-
-  /*
-   * formatName
-   */
-
-  if (
-    format.formatName
-  ) {
-
-    const name =
-      String(
-        format.formatName
-      ).toUpperCase();
-
-
-    const allowedNames = [
-
-      'EAN_13',
-      'EAN-13',
-
-      'EAN_8',
-      'EAN-8',
-
-      'UPC_A',
-      'UPC-A',
-
-      'UPC_E',
-      'UPC-E',
-
-      'CODE_128',
-      'CODE-128',
-
-      'CODE_39',
-      'CODE-39',
-
-      'CODE_93',
-      'CODE-93',
-
-      'CODABAR',
-
-      'ITF'
-
-    ];
-
-
-    return allowedNames.includes(
-      name
-    );
-
-  }
-
-
-  return true;
-
-}
-
-
-
-/****************************************************
- * CAMERA INFORMATION
- ****************************************************/
-
-function updateCameraInfo() {
-
-
-  if (
-    !scanner ||
-    !scannerRunning
-  ) {
-
-    return;
-
-  }
-
-
-  try {
-
-
-    const settings =
-      scanner.getRunningTrackSettings();
-
-
-    const capabilities =
-      scanner.getRunningTrackCapabilities();
-
-
-    /*
-     * Camera
-     */
-
-    let cameraName =
-      '-';
-
-
-    if (
-      cameras[
-        currentCameraIndex
-      ]
-    ) {
-
-      cameraName =
-        cameras[
-          currentCameraIndex
-        ].label ||
-        'Camera';
-
+    if (/Edg\//.test(ua)) {
+      return "Microsoft Edge";
     }
 
-
-    document.getElementById(
-      'cameraInfo'
-    ).textContent =
-      cameraName;
-
-
-    /*
-     * Resolution
-     */
-
-    if (
-      settings.width &&
-      settings.height
-    ) {
-
-      document.getElementById(
-        'resolutionInfo'
-      ).textContent =
-        settings.width +
-        ' × ' +
-        settings.height;
-
+    if (/Firefox\//.test(ua)) {
+      return "Mozilla Firefox";
     }
 
-
-    /*
-     * FPS
-     */
-
-    if (
-      settings.frameRate
-    ) {
-
-      document.getElementById(
-        'fpsInfo'
-      ).textContent =
-        Number(
-          settings.frameRate
-        ).toFixed(1);
-
+    if (/Chrome\//.test(ua)) {
+      return "Google Chrome";
     }
 
+    if (/Safari\//.test(ua) &&
+        !/Chrome\//.test(ua)) {
 
-    /*
-     * Facing
-     */
+      return "Safari";
+    }
 
-    document.getElementById(
-      'facingInfo'
-    ).textContent =
-      settings.facingMode ||
-      '-';
+    return "Unknown";
+  }
 
 
-    /*
-     * Zoom
-     */
+  function detectDevice() {
+
+    const ua =
+      navigator.userAgent;
+
+    if (/Android/i.test(ua)) {
+      return "Android";
+    }
 
     if (
-      capabilities.zoom
+      /iPhone|iPad|iPod/i.test(ua)
     ) {
+      return "iOS";
+    }
 
-      const zoom =
-        capabilities.zoom;
+    if (/Windows/i.test(ua)) {
+      return "Windows";
+    }
+
+    if (/Macintosh/i.test(ua)) {
+      return "macOS";
+    }
+
+    if (/Linux/i.test(ua)) {
+      return "Linux";
+    }
+
+    return "Unknown";
+  }
+
+
+  /* ===========================================================
+     STATUS
+  =========================================================== */
+
+  function setStatus(
+    type,
+    message
+  ) {
+
+    scannerStatus.className =
+      "status status-" + type;
+
+    scannerStatusText.textContent =
+      message;
+
+  }
+
+
+  /* ===========================================================
+     START CAMERA
+  =========================================================== */
+
+  async function startCamera() {
+
+    if (isScanning) {
+      return;
+    }
+
+    try {
+
+      setStatus(
+        "loading",
+        "กำลังตรวจสอบกล้อง..."
+      );
+
+      btnStart.disabled = true;
+
+      /*
+        สร้าง Scanner ใหม่
+      */
+
+      html5QrCode =
+        new Html5Qrcode(
+          "reader",
+          {
+            verbose: false,
+
+            formatsToSupport:
+              BARCODE_FORMATS,
+
+            useBarCodeDetectorIfSupported:
+              USE_NATIVE_BARCODE_DETECTOR
+          }
+        );
+
+
+      /*
+        ขอรายการกล้อง
+
+        getCameras() จะทำให้ Browser
+        ขอ Camera Permission หากยังไม่มี
+      */
+
+      cameras =
+        await Html5Qrcode.getCameras();
 
 
       if (
-        typeof zoom ===
-        'object'
+        !cameras ||
+        cameras.length === 0
       ) {
 
-        document.getElementById(
-          'zoomInfo'
-        ).textContent =
-          zoom.min +
-          ' - ' +
-          zoom.max;
+        throw new Error(
+          "ไม่พบกล้องที่สามารถใช้งานได้"
+        );
 
       }
 
-    }
-    else {
 
-      document.getElementById(
-        'zoomInfo'
-      ).textContent =
-        'ไม่รองรับ';
+      /*
+        เลือกกล้อง
 
-    }
+        มือถือ:
+        พยายามเลือกกล้องหลัง
 
-
-    /*
-     * Torch
-     */
-
-    if (
-      capabilities.torch === true ||
-      capabilities.torchFeature
-    ) {
-
-      document.getElementById(
-        'torchInfo'
-      ).textContent =
-        'รองรับ';
-
-
-      document.getElementById(
-        'torchButton'
-      ).style.display =
-        'inline-block';
-
-    }
-    else {
-
-      document.getElementById(
-        'torchInfo'
-      ).textContent =
-        'ไม่รองรับ';
-
-    }
-
-
-    /*
-     * ส่งข้อมูลกลับ GAS
-     */
-
-    sendCameraInfo();
-
-  }
-  catch (error) {
-
-    console.error(
-      'Camera info error:',
-      error
-    );
-
-  }
-
-}
-
-
-
-/****************************************************
- * CURRENT CAMERA INFO
- ****************************************************/
-
-function getCurrentCameraInfo() {
-
-
-  let settings =
-    {};
-
-
-  try {
-
-    settings =
-      scanner.getRunningTrackSettings();
-
-  }
-  catch (error) {
-
-    console.warn(
-      error
-    );
-
-  }
-
-
-  return {
-
-    camera:
-      cameras[
-        currentCameraIndex
-      ]
-        ? cameras[
-            currentCameraIndex
-          ].label
-        : '',
-
-    width:
-      settings.width ||
-      null,
-
-    height:
-      settings.height ||
-      null,
-
-    fps:
-      settings.frameRate ||
-      null,
-
-    facingMode:
-      settings.facingMode ||
-      null
-
-  };
-
-}
-
-
-
-/****************************************************
- * SEND CAMERA INFO
- ****************************************************/
-
-function sendCameraInfo() {
-
-
-  const info =
-    getCurrentCameraInfo();
-
-
-  try {
-
-
-    const capabilities =
-      scanner.getRunningTrackCapabilities();
-
-
-    info.zoom =
-      capabilities.zoom ||
-      null;
-
-
-    info.torch =
-      !!capabilities.torch;
-
-
-  }
-  catch (error) {
-
-    info.zoom =
-      null;
-
-    info.torch =
-      false;
-
-  }
-
-
-  sendToParent(
-    'CAMERA_INFO',
-    info
-  );
-
-}
-
-
-
-/****************************************************
- * SWITCH CAMERA
- ****************************************************/
-
-async function switchCamera() {
-
-
-  if (
-    !scannerRunning ||
-    cameras.length <= 1
-  ) {
-
-    return;
-
-  }
-
-
-  try {
-
-
-    setStatus(
-      'กำลังเปลี่ยนกล้อง...',
-      'normal'
-    );
-
-
-    await scanner.stop();
-
-
-    currentCameraIndex++;
-
-
-    if (
-      currentCameraIndex >=
-      cameras.length
-    ) {
+        Notebook:
+        ใช้กล้องแรกที่พบ
+      */
 
       currentCameraIndex =
-        0;
+        chooseBestCameraIndex(
+          cameras
+        );
+
+      currentCameraId =
+        cameras[
+          currentCameraIndex
+        ].id;
+
+
+      renderCameraList();
+
+
+      /*
+        เริ่ม Scanner
+      */
+
+      await startScanner(
+        currentCameraId
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "Camera start error:",
+        error
+      );
+
+      btnStart.disabled = false;
+
+      btnStop.disabled = true;
+
+      btnSwitch.disabled = true;
+
+      btnTorch.disabled = true;
+
+      zoomPanel.style.display =
+        "none";
+
+      cameraPlaceholder.style.display =
+        "flex";
+
+      scanOverlay.style.display =
+        "none";
+
+      setStatus(
+        "error",
+        cameraErrorMessage(error)
+      );
 
     }
 
-
-    currentCameraId =
-      cameras[
-        currentCameraIndex
-      ].id;
+  }
 
 
-    const config = {
+  /* ===========================================================
+     CHOOSE BEST CAMERA
+  =========================================================== */
 
-      fps: 10,
+  function chooseBestCameraIndex(
+    deviceList
+  ) {
+
+    /*
+      ตรวจชื่อกล้อง
+
+      มือถือบาง Browser
+      จะรายงานคำว่า:
+
+      back
+      rear
+      environment
+      camera 0
+    */
+
+    const backIndex =
+      deviceList.findIndex(
+        camera => {
+
+          const label =
+            (
+              camera.label || ""
+            ).toLowerCase();
+
+          return (
+            label.includes("back") ||
+            label.includes("rear") ||
+            label.includes("environment")
+          );
+
+        }
+      );
+
+
+    if (backIndex >= 0) {
+      return backIndex;
+    }
+
+
+    /*
+      ถ้ามีหลายกล้อง
+      ให้ลองใช้กล้องตัวแรก
+    */
+
+    return 0;
+
+  }
+
+
+  /* ===========================================================
+     START SCANNER
+  =========================================================== */
+
+  async function startScanner(
+    cameraId
+  ) {
+
+    /*
+      กำหนด Scan Area
+
+      เน้นแนวนอนเพราะ Barcode 1D
+      โดยเฉพาะ CODE_128 / EAN
+    */
+
+    const scanConfig = {
+
+      fps: SCANNER_FPS,
+
+      /*
+        ให้ library ใช้พื้นที่ scan
+        ตามขนาดหน้าจอ
+
+        width มากกว่า height
+        เพื่อเหมาะกับ 1D Barcode
+      */
+
+      qrbox: (
+        viewfinderWidth,
+        viewfinderHeight
+      ) => {
+
+        const width =
+          Math.min(
+            Math.floor(
+              viewfinderWidth * 0.84
+            ),
+            900
+          );
+
+        const height =
+          Math.min(
+            Math.floor(
+              viewfinderHeight * 0.30
+            ),
+            190
+          );
+
+        return {
+          width,
+          height
+        };
+
+      },
+
+      /*
+        ใช้ aspect ratio ที่เหมาะกับ
+        กล้องทั่วไป
+
+        16:9
+      */
 
       aspectRatio:
         16 / 9,
 
-      qrbox: {
-
-        width: 600,
-
-        height: 180
-
-      },
-
-      videoConstraints:
-        getCameraConstraints()
+      disableFlip:
+        true
 
     };
 
 
-    await scanner.start(
+    /*
+      ขอ Resolution แบบ "ideal"
 
-      currentCameraId,
+      ไม่บังคับ exact
 
-      config,
+      Browser สามารถเลือกค่าที่เหมาะสม
+      ตามอุปกรณ์ได้
+    */
+
+    scanConfig.videoConstraints = {
+
+      width: {
+        ideal: 1280
+      },
+
+      height: {
+        ideal: 720
+      },
+
+      frameRate: {
+        ideal: 30,
+        max: 60
+      }
+
+    };
+
+
+    setStatus(
+      "loading",
+      "กำลังเปิดกล้อง..."
+    );
+
+
+    await html5QrCode.start(
+
+      {
+        deviceId: {
+          exact: cameraId
+        }
+      },
+
+      scanConfig,
 
       onScanSuccess,
 
@@ -1699,540 +2042,1201 @@ async function switchCamera() {
     );
 
 
-    setStatus(
-      'เปลี่ยนกล้องแล้ว',
-      'success'
-    );
+    isScanning = true;
 
+    cameraPlaceholder.style.display =
+      "none";
 
-    setTimeout(
-      updateCameraInfo,
-      500
-    );
+    scanOverlay.style.display =
+      "flex";
 
+    btnStart.disabled = true;
 
-  }
-  catch (error) {
+    btnStop.disabled = false;
 
-    console.error(
-      error
-    );
+    btnSwitch.disabled =
+      cameras.length < 2;
 
 
     setStatus(
-      'ไม่สามารถเปลี่ยนกล้องได้',
-      'error'
+      "running",
+      "กำลังสแกน Barcode 1D"
     );
+
+
+    /*
+      อ่านค่าความสามารถของกล้อง
+    */
+
+    await updateCameraInformation();
 
   }
 
-}
+
+  /* ===========================================================
+     CAMERA INFORMATION
+  =========================================================== */
+
+  async function updateCameraInformation() {
+
+    try {
+
+      currentCapabilities =
+        html5QrCode
+          .getRunningTrackCapabilities();
 
 
-
-/****************************************************
- * STOP CAMERA
- ****************************************************/
-
-async function stopScanner() {
+      currentSettings =
+        html5QrCode
+          .getRunningTrackSettings();
 
 
-  if (
-    !scanner ||
-    !scannerRunning
+      console.log(
+        "Camera capabilities:",
+        currentCapabilities
+      );
+
+      console.log(
+        "Camera settings:",
+        currentSettings
+      );
+
+
+      /*
+        Camera name
+      */
+
+      const camera =
+        cameras[
+          currentCameraIndex
+        ];
+
+      el("infoCamera").textContent =
+        camera?.label ||
+        `Camera ${currentCameraIndex}`;
+
+
+      /*
+        Resolution
+      */
+
+      const width =
+        currentSettings?.width;
+
+      const height =
+        currentSettings?.height;
+
+      if (width && height) {
+
+        el("infoResolution")
+          .textContent =
+          `${width} × ${height}`;
+
+      } else {
+
+        el("infoResolution")
+          .textContent =
+          "-";
+
+      }
+
+
+      /*
+        FPS
+      */
+
+      const fps =
+        currentSettings?.frameRate;
+
+      if (fps) {
+
+        el("infoFps")
+          .textContent =
+          `${Number(fps).toFixed(1)} FPS`;
+
+      } else {
+
+        el("infoFps")
+          .textContent =
+          "-";
+
+      }
+
+
+      /*
+        Facing
+      */
+
+      el("infoFacing")
+        .textContent =
+        currentSettings?.facingMode ||
+        detectFacingFromLabel(
+          camera?.label
+        ) ||
+        "-";
+
+
+      /*
+        Zoom
+      */
+
+      configureZoom(
+        currentCapabilities
+      );
+
+
+      /*
+        Torch
+      */
+
+      configureTorch(
+        currentCapabilities
+      );
+
+
+    } catch (error) {
+
+      console.warn(
+        "Unable to read camera capabilities:",
+        error
+      );
+
+    }
+
+  }
+
+
+  /* ===========================================================
+     FACING DETECTION
+  =========================================================== */
+
+  function detectFacingFromLabel(
+    label
   ) {
 
-    return;
+    const text =
+      String(label || "")
+        .toLowerCase();
+
+    if (
+      text.includes("back") ||
+      text.includes("rear")
+    ) {
+
+      return "environment";
+
+    }
+
+    if (
+      text.includes("front") ||
+      text.includes("user")
+    ) {
+
+      return "user";
+
+    }
+
+    return "-";
 
   }
 
 
-  try {
+  /* ===========================================================
+     ZOOM
+  =========================================================== */
 
-    await scanner.stop();
-
-  }
-  catch (error) {
-
-    console.error(
-      error
-    );
-
-  }
-
-
-  scannerRunning =
-    false;
-
-
-  setStatus(
-    'ปิดกล้องแล้ว',
-    'normal'
-  );
-
-}
-
-
-
-/****************************************************
- * TORCH
- ****************************************************/
-
-async function toggleTorch() {
-
-
-  if (
-    !scanner ||
-    !scannerRunning
+  function configureZoom(
+    capabilities
   ) {
 
-    return;
-
-  }
-
-
-  try {
+    const zoom =
+      capabilities?.zoom;
 
 
-    torchOn =
-      !torchOn;
+    /*
+      บาง Browser รายงาน zoom
+      เป็น object เช่น:
+
+      {
+        min,
+        max,
+        step
+      }
+    */
+
+    if (
+      zoom &&
+      typeof zoom.min === "number" &&
+      typeof zoom.max === "number"
+    ) {
+
+      const min =
+        zoom.min;
+
+      const max =
+        zoom.max;
+
+      const step =
+        typeof zoom.step === "number"
+          ? zoom.step
+          : 0.1;
 
 
-    await scanner.applyVideoConstraints({
+      zoomRange.min =
+        min;
 
-      advanced: [
+      zoomRange.max =
+        max;
 
-        {
-
-          torch:
-            torchOn
-
-        }
-
-      ]
-
-    });
+      zoomRange.step =
+        step;
 
 
-    setStatus(
-      torchOn
-        ? 'เปิดไฟฉายแล้ว'
-        : 'ปิดไฟฉายแล้ว',
-      'success'
-    );
+      /*
+        อย่าเริ่มที่ Zoom สูง
+        เพราะอาจทำให้ภาพแตก
+
+        ถ้า min=1 ให้เริ่ม 1
+      */
+
+      const defaultZoom =
+        min <= 1
+          ? 1
+          : min;
 
 
-  }
-  catch (error) {
+      zoomRange.value =
+        defaultZoom;
 
 
-    console.warn(
-      'Torch not supported:',
-      error
-    );
+      zoomValue.textContent =
+        `${Number(defaultZoom).toFixed(1)}×`;
 
 
-    torchOn =
-      false;
+      zoomPanel.style.display =
+        "block";
 
 
-    setStatus(
-      'อุปกรณ์หรือ Browser ไม่รองรับไฟฉาย',
-      'normal'
-    );
-
-  }
-
-}
-
-
-
-/****************************************************
- * FILE / CAPTURE
- ****************************************************/
-
-document.getElementById(
-  'fileInput'
-).addEventListener(
-  'change',
-  async function(event) {
-
-
-    const file =
-      event.target.files[0];
-
-
-    if (!file) {
+      el("infoZoom")
+        .textContent =
+        `${min} – ${max}`;
 
       return;
 
     }
 
 
+    /*
+      ไม่รองรับ
+    */
+
+    zoomPanel.style.display =
+      "none";
+
+    el("infoZoom")
+      .textContent =
+      "ไม่รองรับ";
+
+  }
+
+
+  /* ===========================================================
+     CHANGE ZOOM
+  =========================================================== */
+
+  async function changeZoom() {
+
+    if (!isScanning) {
+      return;
+    }
+
+
+    const value =
+      Number(
+        zoomRange.value
+      );
+
+
+    zoomValue.textContent =
+      `${value.toFixed(1)}×`;
+
+
     try {
 
+      await html5QrCode
+        .applyVideoConstraints({
 
-      /*
-       * หากกล้องกำลังทำงาน
-       * ต้องหยุดก่อน
-       */
+          advanced: [
+            {
+              zoom: value
+            }
+          ]
 
-      if (
-        scannerRunning
-      ) {
-
-        await scanner.stop();
-
-        scannerRunning =
-          false;
-
-      }
+        });
 
 
-      setStatus(
-        'กำลังวิเคราะห์รูปภาพ...',
-        'normal'
-      );
+    } catch (error) {
 
-
-      /*
-       * ใช้ scanFileV2
-       *
-       * เพื่อให้สามารถดู Barcode Format
-       */
-
-      const result =
-        await scanner.scanFileV2(
-          file,
-          false
-        );
-
-
-      if (!result) {
-
-        throw new Error(
-          'ไม่พบ Barcode'
-        );
-
-      }
-
-
-      const decodedText =
-        result.decodedText;
-
-
-      /*
-       * ตรวจ Format
-       */
-
-      if (
-        !isAllowedFormat(
-          result
-        )
-      ) {
-
-        throw new Error(
-          'รูปภาพนี้ไม่ใช่ Barcode 1D ที่รองรับ'
-        );
-
-      }
-
-
-      let format =
-        'Barcode';
-
-
-      try {
-
-        const rawFormat =
-          result.result &&
-          result.result.format;
-
-
-        if (
-          rawFormat &&
-          rawFormat.formatName
-        ) {
-
-          format =
-            rawFormat.formatName;
-
-        }
-
-      }
-      catch (error) {
-
-        console.warn(
-          error
-        );
-
-      }
-
-
-      showResult(
-        format,
-        decodedText
-      );
-
-
-      sendToParent(
-        'BARCODE_RESULT',
-        {
-
-          format:
-            format,
-
-          value:
-            decodedText,
-
-          source:
-            'image'
-
-        }
-      );
-
-
-      setStatus(
-        'อ่าน Barcode จากรูปภาพสำเร็จ',
-        'success'
-      );
-
-
-    }
-    catch (error) {
-
-
-      console.error(
+      console.warn(
+        "Zoom failed:",
         error
       );
 
+    }
 
-      setStatus(
-        'ไม่พบ Barcode 1D ที่รองรับในรูปภาพ',
-        'error'
-      );
+  }
+
+
+  /* ===========================================================
+     TORCH
+  =========================================================== */
+
+  function configureTorch(
+    capabilities
+  ) {
+
+    /*
+      html5-qrcode อาจ expose torch
+      ผ่าน capabilities
+
+      หรือบาง Browser อาจไม่ expose
+    */
+
+    let supported = false;
+
+
+    if (
+      capabilities &&
+      capabilities.torchFeature
+    ) {
+
+      supported =
+        true;
 
     }
 
 
     /*
-     * reset
-     */
+      ตรวจ MediaTrackCapabilities
+      เพิ่มอีกชั้น
+    */
 
-    event.target.value =
-      '';
+    if (
+      capabilities &&
+      capabilities.torch === true
+    ) {
+
+      supported =
+        true;
+
+    }
+
+
+    btnTorch.disabled =
+      !supported;
+
+
+    if (supported) {
+
+      el("infoTorch")
+        .textContent =
+        "รองรับ";
+
+    } else {
+
+      el("infoTorch")
+        .textContent =
+        "ไม่รองรับ";
+
+    }
 
   }
-);
 
 
+  /* ===========================================================
+     TOGGLE TORCH
+  =========================================================== */
 
-/****************************************************
- * SHOW RESULT
- ****************************************************/
+  async function toggleTorch() {
 
-function showResult(
-  format,
-  value
-) {
-
-
-  document.getElementById(
-    'result'
-  ).style.display =
-    'block';
+    if (!isScanning) {
+      return;
+    }
 
 
-  document.getElementById(
-    'resultFormat'
-  ).textContent =
-    format;
+    try {
+
+      isTorchOn =
+        !isTorchOn;
 
 
-  document.getElementById(
-    'resultValue'
-  ).textContent =
-    value;
+      await html5QrCode
+        .applyVideoConstraints({
 
-}
+          torch:
+            isTorchOn,
 
+          advanced: [
+            {
+              torch:
+                isTorchOn
+            }
+          ]
 
-
-/****************************************************
- * STATUS
- ****************************************************/
-
-function setStatus(
-  message,
-  type
-) {
+        });
 
 
-  const element =
-    document.getElementById(
-      'status'
+      btnTorch.textContent =
+        isTorchOn
+          ? "🔦 ปิดไฟฉาย"
+          : "🔦 เปิดไฟฉาย";
+
+
+    } catch (error) {
+
+      console.warn(
+        "Torch failed:",
+        error
+      );
+
+      isTorchOn = false;
+
+      btnTorch.textContent =
+        "🔦 ไฟฉาย";
+
+      alert(
+        "กล้องหรือ Browser ไม่รองรับการควบคุมไฟฉาย"
+      );
+
+    }
+
+  }
+
+
+  /* ===========================================================
+     SCAN SUCCESS
+  =========================================================== */
+
+  function onScanSuccess(
+    decodedText,
+    decodedResult
+  ) {
+
+    /*
+      ป้องกันการอ่านซ้ำเร็วเกินไป
+    */
+
+    const now =
+      Date.now();
+
+
+    if (
+      decodedText === lastBarcode &&
+      now - lastScanTime < 1500
+    ) {
+
+      return;
+
+    }
+
+
+    lastBarcode =
+      decodedText;
+
+    lastScanTime =
+      now;
+
+
+    /*
+      ดึงชื่อ Format
+    */
+
+    const format =
+      getBarcodeFormatName(
+        decodedResult
+      );
+
+
+    /*
+      แสดงผล
+    */
+
+    showBarcodeResult(
+      decodedText,
+      format
     );
 
 
-  element.textContent =
-    message;
+    /*
+      เปลี่ยนสถานะ
+    */
+
+    setStatus(
+      "success",
+      "พบ Barcode"
+    );
 
 
-  element.className =
-    'status';
+    /*
+      หลังจากประมาณ 1.5 วินาที
+      กลับไปสถานะกำลังสแกน
+    */
+
+    setTimeout(
+      () => {
+
+        if (isScanning) {
+
+          setStatus(
+            "running",
+            "กำลังสแกน Barcode 1D"
+          );
+
+        }
+
+      },
+      1500
+    );
 
 
-  if (
-    type === 'success'
+    /*
+      เสียงสั้น ๆ
+
+      ใช้เฉพาะเมื่อ Browser
+      อนุญาต AudioContext
+    */
+
+    playBeep();
+
+  }
+
+
+  /* ===========================================================
+     GET BARCODE FORMAT NAME
+  =========================================================== */
+
+  function getBarcodeFormatName(
+    decodedResult
   ) {
 
-    element.classList.add(
-      'success'
+    try {
+
+      const format =
+        decodedResult
+          ?.result
+          ?.format;
+
+
+      if (format) {
+
+        /*
+          html5-qrcode / ZXing
+          อาจคืน object ที่มี formatName
+        */
+
+        if (
+          typeof format === "object" &&
+          format.formatName
+        ) {
+
+          return format.formatName;
+
+        }
+
+
+        /*
+          fallback
+        */
+
+        if (
+          typeof format === "string"
+        ) {
+
+          return format;
+
+        }
+
+      }
+
+    } catch (error) {
+
+      console.warn(
+        "Format detection failed:",
+        error
+      );
+
+    }
+
+
+    return "BARCODE";
+
+  }
+
+
+  /* ===========================================================
+     SHOW RESULT
+  =========================================================== */
+
+  function showBarcodeResult(
+    value,
+    format
+  ) {
+
+    resultEmpty.style.display =
+      "none";
+
+    resultBox.style.display =
+      "block";
+
+
+    resultFormat.textContent =
+      format;
+
+
+    resultValue.textContent =
+      value;
+
+
+    resultTime.textContent =
+      "อ่านเมื่อ " +
+      new Date()
+        .toLocaleString(
+          "th-TH"
+        );
+
+  }
+
+
+  /* ===========================================================
+     SCAN FAILURE
+  =========================================================== */
+
+  function onScanFailure(
+    errorMessage
+  ) {
+
+    /*
+      ไม่ต้องแสดง error
+      เพราะระหว่าง scanning
+      การหา Barcode ไม่เจอ
+      เป็นเรื่องปกติ
+    */
+
+  }
+
+
+  /* ===========================================================
+     STOP CAMERA
+  =========================================================== */
+
+  async function stopCamera() {
+
+    try {
+
+      if (
+        html5QrCode &&
+        isScanning
+      ) {
+
+        await html5QrCode.stop();
+
+      }
+
+    } catch (error) {
+
+      console.warn(
+        "Stop camera error:",
+        error
+      );
+
+    }
+
+
+    isScanning = false;
+
+    currentCameraId = null;
+
+    currentCapabilities = null;
+
+    currentSettings = null;
+
+    isTorchOn = false;
+
+
+    btnStart.disabled = false;
+
+    btnStop.disabled = true;
+
+    btnSwitch.disabled = true;
+
+    btnTorch.disabled = true;
+
+
+    zoomPanel.style.display =
+      "none";
+
+
+    scanOverlay.style.display =
+      "none";
+
+
+    cameraPlaceholder.style.display =
+      "flex";
+
+
+    btnTorch.textContent =
+      "🔦 ไฟฉาย";
+
+
+    setStatus(
+      "idle",
+      "กล้องยังไม่ทำงาน"
+    );
+
+
+    clearCameraInfo();
+
+  }
+
+
+  /* ===========================================================
+     CLEAR CAMERA INFO
+  =========================================================== */
+
+  function clearCameraInfo() {
+
+    el("infoCamera")
+      .textContent =
+      "-";
+
+    el("infoResolution")
+      .textContent =
+      "-";
+
+    el("infoFps")
+      .textContent =
+      "-";
+
+    el("infoFacing")
+      .textContent =
+      "-";
+
+    el("infoZoom")
+      .textContent =
+      "-";
+
+    el("infoTorch")
+      .textContent =
+      "-";
+
+  }
+
+
+  /* ===========================================================
+     SWITCH CAMERA
+  =========================================================== */
+
+  async function switchCamera() {
+
+    if (
+      cameras.length < 2
+    ) {
+
+      return;
+
+    }
+
+
+    currentCameraIndex =
+      (
+        currentCameraIndex + 1
+      ) % cameras.length;
+
+
+    await restartWithCamera(
+      cameras[
+        currentCameraIndex
+      ].id
     );
 
   }
-  else if (
-    type === 'error'
+
+
+  /* ===========================================================
+     RESTART WITH CAMERA
+  =========================================================== */
+
+  async function restartWithCamera(
+    cameraId
   ) {
 
-    element.classList.add(
-      'error'
+    try {
+
+      setStatus(
+        "loading",
+        "กำลังเปลี่ยนกล้อง..."
+      );
+
+
+      if (
+        html5QrCode &&
+        isScanning
+      ) {
+
+        await html5QrCode.stop();
+
+        isScanning = false;
+
+      }
+
+
+      currentCameraId =
+        cameraId;
+
+
+      await startScanner(
+        cameraId
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "Switch camera error:",
+        error
+      );
+
+      setStatus(
+        "error",
+        "ไม่สามารถเปลี่ยนกล้องได้"
+      );
+
+    }
+
+  }
+
+
+  /* ===========================================================
+     CAMERA LIST
+  =========================================================== */
+
+  function renderCameraList() {
+
+    cameraSelect.innerHTML =
+      "";
+
+
+    cameras.forEach(
+      (camera, index) => {
+
+        const option =
+          document.createElement(
+            "option"
+          );
+
+        option.value =
+          index;
+
+        option.textContent =
+          camera.label ||
+          `Camera ${index + 1}`;
+
+
+        if (
+          index ===
+          currentCameraIndex
+        ) {
+
+          option.selected =
+            true;
+
+        }
+
+
+        cameraSelect.appendChild(
+          option
+        );
+
+      }
     );
 
+
+    /*
+      แสดง Dropdown เฉพาะกรณี
+      มีมากกว่า 1 กล้อง
+    */
+
+    cameraSelectPanel.style.display =
+      cameras.length > 1
+        ? "block"
+        : "none";
+
   }
 
-}
 
+  /* ===========================================================
+     CAMERA ERROR MESSAGE
+  =========================================================== */
 
-
-/****************************************************
- * SEND TO GOOGLE APPS SCRIPT
- ****************************************************/
-
-function sendToParent(
-  type,
-  data,
-  message
-) {
-
-
-  if (
-    !window.opener
+  function cameraErrorMessage(
+    error
   ) {
 
-    console.warn(
-      'window.opener is not available'
-    );
-
-    return;
-
-  }
-
-
-  window.opener.postMessage(
-
-    {
-
-      type:
-        type,
-
-      data:
-        data,
-
-      message:
-        message ||
-        null
-
-    },
-
-    '*'
-
-  );
-
-}
+    const message =
+      String(
+        error?.message ||
+        error ||
+        ""
+      ).toLowerCase();
 
 
+    if (
+      message.includes(
+        "permission"
+      ) ||
+      message.includes(
+        "notallowed"
+      )
+    ) {
 
-/****************************************************
- * CAMERA ERROR MESSAGE
- ****************************************************/
+      return (
+        "ไม่ได้รับอนุญาตให้ใช้กล้อง " +
+        "กรุณา Allow Camera ใน Browser"
+      );
 
-function getCameraErrorMessage(
-  error
-) {
-
-
-  if (!error) {
-
-    return 'ไม่สามารถเปิดกล้องได้';
-
-  }
-
-
-  const name =
-    error.name ||
-    '';
+    }
 
 
-  if (
-    name ===
-    'NotAllowedError'
-  ) {
+    if (
+      message.includes(
+        "notfound"
+      ) ||
+      message.includes(
+        "no camera"
+      )
+    ) {
+
+      return (
+        "ไม่พบกล้องบนอุปกรณ์"
+      );
+
+    }
+
+
+    if (
+      message.includes(
+        "secure"
+      )
+    ) {
+
+      return (
+        "เว็บไซต์ต้องเปิดผ่าน HTTPS"
+      );
+
+    }
+
 
     return (
-      'ไม่ได้รับอนุญาตให้ใช้กล้อง ' +
-      'กรุณากด Allow ใน Browser'
+      "ไม่สามารถเปิดกล้องได้"
     );
 
   }
 
 
-  if (
-    name ===
-    'NotFoundError'
+  /* ===========================================================
+     FILE SCANNING
+  =========================================================== */
+
+  async function handleImageFile(
+    event
   ) {
 
-    return (
-      'ไม่พบกล้องในอุปกรณ์'
-    );
+    const file =
+      event.target.files?.[0];
+
+
+    if (!file) {
+      return;
+    }
+
+
+    try {
+
+      fileStatus.textContent =
+        "กำลังอ่าน Barcode จากรูป...";
+
+
+      /*
+        แสดง Preview
+      */
+
+      filePreview.src =
+        URL.createObjectURL(
+          file
+        );
+
+      filePreview.style.display =
+        "block";
+
+
+      /*
+        Camera scan กับ file scan
+        เป็นคนละ operation
+
+        ดังนั้นหยุดกล้องก่อน
+      */
+
+      if (isScanning) {
+
+        await stopCamera();
+
+      }
+
+
+      /*
+        สร้าง Scanner ใหม่
+      */
+
+      if (!html5QrCode) {
+
+        html5QrCode =
+          new Html5Qrcode(
+            "reader",
+            {
+              verbose: false,
+
+              formatsToSupport:
+                BARCODE_FORMATS,
+
+              useBarCodeDetectorIfSupported:
+                USE_NATIVE_BARCODE_DETECTOR
+            }
+          );
+
+      }
+
+
+      /*
+        scanFile ใช้เฉพาะ format
+        ที่เรากำหนดไว้ด้านบน
+
+        QR Code ไม่อยู่ในรายการ
+      */
+
+      const decodedText =
+        await html5QrCode.scanFile(
+          file,
+          false
+        );
+
+
+      showBarcodeResult(
+        decodedText,
+        "BARCODE"
+      );
+
+
+      setStatus(
+        "success",
+        "พบ Barcode จากรูปภาพ"
+      );
+
+
+      fileStatus.textContent =
+        "อ่าน Barcode จากรูปสำเร็จ";
+
+
+    } catch (error) {
+
+      console.warn(
+        "File scan error:",
+        error
+      );
+
+
+      fileStatus.textContent =
+        "ไม่พบ Barcode 1D ในรูปภาพ";
+
+
+      setStatus(
+        "error",
+        "ไม่พบ Barcode 1D ในรูปภาพ"
+      );
+
+    }
 
   }
 
 
-  if (
-    name ===
-    'NotReadableError'
-  ) {
+  /* ===========================================================
+     BEEP
+  =========================================================== */
 
-    return (
-      'กล้องกำลังถูกใช้งานโดยโปรแกรมอื่น'
-    );
+  function playBeep() {
+
+    try {
+
+      const AudioContext =
+        window.AudioContext ||
+        window.webkitAudioContext;
+
+
+      if (!AudioContext) {
+        return;
+      }
+
+
+      const audioContext =
+        new AudioContext();
+
+
+      const oscillator =
+        audioContext.createOscillator();
+
+
+      const gain =
+        audioContext.createGain();
+
+
+      oscillator.frequency.value =
+        880;
+
+      oscillator.type =
+        "sine";
+
+
+      gain.gain.value =
+        0.08;
+
+
+      oscillator.connect(
+        gain
+      );
+
+      gain.connect(
+        audioContext.destination
+      );
+
+
+      oscillator.start();
+
+
+      oscillator.stop(
+        audioContext.currentTime +
+        0.08
+      );
+
+    } catch (error) {
+
+      /*
+        ไม่ต้องทำอะไร
+      */
+
+    }
 
   }
-
-
-  if (
-    name ===
-    'OverconstrainedError'
-  ) {
-
-    return (
-      'ค่าความละเอียดที่ร้องขอไม่รองรับ'
-    );
-
-  }
-
-
-  return (
-    error.message ||
-    'เกิดข้อผิดพลาดในการเปิดกล้อง'
-  );
-
-}
 
 </script>
 
-
 </body>
-
 </html>
