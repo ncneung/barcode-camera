@@ -3267,6 +3267,21 @@
         "BARCODE"
       );
 
+      if (
+  window.opener &&
+  !window.opener.closed
+) {
+
+  window.opener.postMessage(
+    {
+      type: 'BARCODE_SCANNED',
+      value: decodedText
+    },
+    '*'
+  );
+
+}
+
 
       setStatus(
         "success",
