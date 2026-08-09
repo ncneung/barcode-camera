@@ -1758,10 +1758,6 @@
 
       btnStart.disabled = true;
 
-      /*
-        สร้าง Scanner ใหม่
-      */
-
       html5QrCode =
         new Html5Qrcode(
           "reader",
@@ -1778,10 +1774,12 @@
 
 
       /*
-        ขอรายการกล้อง
+        ขอ permission และรายการกล้องก่อน
 
-        getCameras() จะทำให้ Browser
-        ขอ Camera Permission หากยังไม่มี
+        หมายเหตุ:
+        getCameras() จะทำให้ Browser ขอสิทธิ์กล้อง
+        และหลังจากได้รับ permission แล้วจึงมักได้ label/deviceId
+        ที่สมบูรณ์กว่าเดิม
       */
 
       cameras =
@@ -1801,52 +1799,164 @@
 
 
       /*
-        Mobile / Tablet: พยายามเปิดกล้องหลังด้วย facingMode=environment ก่อน
-        Desktop / Notebook: ใช้กล้องที่ตรวจพบตามเดิม
+        จุดสำคัญมาก:
+        html5-qrcode ระบุว่า videoConstraints
+        จะ override cameraIdOrConfig
+
+        ดังนั้นการกำหนด videoConstraints แบบเดิม
+        ที่มีแค่ width/height/frameRate
+        ทำให้ { facingMode: ... } และ
+        { deviceId: ... } ที่ส่งเข้า start()
+        ถูกมองข้าม
+
+        เราจึงรวม "การเลือกกล้อง" เข้าไปใน
+        videoConstraints โดยตรง
       */
 
-      const preferRearCamera = isMobileOrTablet();
+      if (isMobileOrTablet()) {
 
-      if (preferRearCamera) {
+        /*
+          รอบที่ 1:
+          ใช้ ideal environment ก่อน
+
+          วิธีนี้ให้ Browser เลือกกล้องหลัง
+          โดยไม่ทำให้การเปิดกล้องล้มเหลวทันที
+          หากอุปกรณ์ไม่สามารถระบุ facingMode ได้
+        */
+
         try {
-          setStatus("loading", "กำลังเลือกกล้องหลัง...");
+
+          setStatus(
+            "loading",
+            "กำลังเลือกกล้องหลัง..."
+          );
 
           await startScanner(
-            { facingMode: { exact: "environment" } },
+            {
+              facingMode: {
+                ideal: "environment"
+              }
+            },
             true
           );
 
-          syncCurrentCameraFromTrack();
-          renderCameraList();
-          return;
+          /*
+            ตรวจสอบว่ากล้องที่เปิดจริง
+            เป็นกล้องหลังหรือไม่
+          */
 
-        } catch (rearError) {
+          if (isCurrentTrackRearCamera()) {
+
+            syncCurrentCameraFromTrack();
+            renderCameraList();
+
+            return;
+
+          }
+
+          /*
+            ถ้า Browser เปิดกล้องหน้าแทน
+            ให้หยุดแล้วลอง exact environment
+          */
+
+          await stopRunningScannerOnly();
+
+        } catch (rearPreferredError) {
+
           console.warn(
-            "Rear camera preference failed, falling back to device list:",
-            rearError
+            "Preferred rear camera failed:",
+            rearPreferredError
           );
 
-          try {
-            if (html5QrCode && isScanning) {
-              await html5QrCode.stop();
-              isScanning = false;
-            }
-          } catch (stopError) {
-            console.warn("Fallback stop error:", stopError);
-          }
+          await stopRunningScannerOnly();
+
         }
+
+
+        /*
+          รอบที่ 2:
+          บังคับ environment
+
+          ถ้า Browser รองรับ
+          จะต้องเลือกกล้องหลังเท่านั้น
+        */
+
+        try {
+
+          setStatus(
+            "loading",
+            "กำลังบังคับเลือกกล้องหลัง..."
+          );
+
+          await startScanner(
+            {
+              facingMode: {
+                exact: "environment"
+              }
+            },
+            true
+          );
+
+          if (isCurrentTrackRearCamera()) {
+
+            syncCurrentCameraFromTrack();
+            renderCameraList();
+
+            return;
+
+          }
+
+          /*
+            เปิดได้แต่ยังไม่ใช่กล้องหลัง
+            จึงไม่ถือว่าสำเร็จ
+          */
+
+          await stopRunningScannerOnly();
+
+        } catch (rearExactError) {
+
+          console.warn(
+            "Exact rear camera failed:",
+            rearExactError
+          );
+
+          await stopRunningScannerOnly();
+
+        }
+
       }
 
-      currentCameraIndex = chooseBestCameraIndex(cameras);
-      currentCameraId = cameras[currentCameraIndex].id;
+
+      /*
+        Fallback:
+        ใช้ deviceId
+
+        มือถือ:
+          พยายามเลือกจาก label ที่บอกว่า
+          back / rear / environment
+
+        Desktop:
+          ใช้กล้องที่เหมาะสมตัวแรก
+      */
+
+      currentCameraIndex =
+        chooseBestCameraIndex(cameras);
+
+      currentCameraId =
+        cameras[
+          currentCameraIndex
+        ].id;
 
       renderCameraList();
 
       await startScanner(
-        { deviceId: { exact: currentCameraId } },
+        {
+          deviceId: {
+            exact: currentCameraId
+          }
+        },
         false
       );
-
 
     } catch (error) {
 
@@ -1876,6 +1986,122 @@
         "error",
         cameraErrorMessage(error)
       );
+
+    }
+
+  }
+
+
+  /*
+    หยุดเฉพาะ scanner ที่กำลังทำงานอยู่
+    ใช้ตอนทดสอบกล้องหลังหลายวิธี
+  */
+
+  async function stopRunningScannerOnly() {
+
+    try {
+
+      if (
+        html5QrCode &&
+        isScanning
+      ) {
+
+        await html5QrCode.stop();
+
+      }
+
+    } catch (error) {
+
+      console.warn(
+        "Temporary scanner stop error:",
+        error
+      );
+
+    }
+
+    isScanning = false;
+
+    cameraPlaceholder.style.display =
+      "flex";
+
+    scanOverlay.style.display =
+      "none";
+
+  }
+
+
+  /*
+    ตรวจสอบจาก track settings/capabilities
+    ว่ากล้องที่กำลังใช้งานเป็น rear หรือไม่
+  */
+
+  function isCurrentTrackRearCamera() {
+
+    try {
+
+      const settings =
+        html5QrCode
+          ?.getRunningTrackSettings?.();
+
+      const facing =
+        String(
+          settings?.facingMode || ""
+        ).toLowerCase();
+
+      if (
+        facing === "environment" ||
+        facing.includes("environment")
+      ) {
+
+        return true;
+
+      }
+
+
+      /*
+        บาง Browser อาจไม่คืน facingMode
+        จึงตรวจจาก label ของ device ที่ตรงกับ
+        deviceId ของ track แทน
+      */
+
+      const actualDeviceId =
+        settings?.deviceId;
+
+      if (actualDeviceId) {
+
+        const camera =
+          cameras.find(
+            item =>
+              item.id === actualDeviceId
+          );
+
+        const label =
+          String(
+            camera?.label || ""
+          ).toLowerCase();
+
+        if (
+          label.includes("back") ||
+          label.includes("rear") ||
+          label.includes("environment")
+        ) {
+
+          return true;
+
+        }
+
+      }
+
+      return false;
+
+    } catch (error) {
+
+      console.warn(
+        "Unable to determine rear camera:",
+        error
+      );
+
+      return false;
 
     }
 
@@ -2042,15 +2268,32 @@
 
 
     /*
-      ขอ Resolution แบบ "ideal"
+      สำคัญ:
+      html5-qrcode ระบุว่า videoConstraints
+      จะ override cameraIdOrConfig
 
-      ไม่บังคับ exact
-
-      Browser สามารถเลือกค่าที่เหมาะสม
-      ตามอุปกรณ์ได้
+      ดังนั้นต้องรวม cameraConfig
+      (facingMode หรือ deviceId)
+      เข้าไปใน videoConstraints โดยตรง
     */
 
+    const requestedCameraConstraints =
+      cameraConfig &&
+      typeof cameraConfig === "object"
+        ? cameraConfig
+        : {};
+
     scanConfig.videoConstraints = {
+
+      ...requestedCameraConstraints,
+
+      /*
+        ความละเอียดเป็น "ideal"
+        ไม่บังคับ exact
+
+        Browser จึงเลือกค่าที่เหมาะสม
+        ตามความสามารถจริงของอุปกรณ์
+      */
 
       width: {
         ideal: 1280
