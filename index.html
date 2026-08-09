@@ -1158,15 +1158,6 @@
           </button>
 
           <button
-            id="btnSwitch"
-            class="btn btn-secondary"
-            type="button"
-            disabled
-          >
-            🔄 เปลี่ยนกล้อง
-          </button>
-
-          <button
             id="btnTorch"
             class="btn btn-warning"
             type="button"
@@ -1209,22 +1200,6 @@
             step="0.1"
             value="1"
           >
-
-        </div>
-
-
-        <!-- Camera Selection -->
-
-        <div
-          id="cameraSelectPanel"
-          style="display:none; margin-top:14px;"
-        >
-
-          <select
-            id="cameraSelect"
-            class="camera-select"
-          >
-          </select>
 
         </div>
 
@@ -1560,7 +1535,6 @@
 
   const btnStart = el("btnStart");
   const btnStop = el("btnStop");
-  const btnSwitch = el("btnSwitch");
   const btnTorch = el("btnTorch");
 
   const cameraPlaceholder = el("cameraPlaceholder");
@@ -1572,9 +1546,6 @@
   const zoomPanel = el("zoomPanel");
   const zoomRange = el("zoomRange");
   const zoomValue = el("zoomValue");
-
-  const cameraSelectPanel = el("cameraSelectPanel");
-  const cameraSelect = el("cameraSelect");
 
   const resultEmpty = el("resultEmpty");
   const resultBox = el("resultBox");
@@ -1612,11 +1583,6 @@
         stopCamera
       );
 
-      btnSwitch.addEventListener(
-        "click",
-        switchCamera
-      );
-
       btnTorch.addEventListener(
         "click",
         toggleTorch
@@ -1625,29 +1591,6 @@
       zoomRange.addEventListener(
         "input",
         changeZoom
-      );
-
-      cameraSelect.addEventListener(
-        "change",
-        async event => {
-
-          const index =
-            Number(event.target.value);
-
-          if (
-            Number.isInteger(index) &&
-            cameras[index]
-          ) {
-
-            currentCameraIndex = index;
-
-            await restartWithCamera(
-              cameras[index].id
-            );
-
-          }
-
-        }
       );
 
       fileInput.addEventListener(
@@ -1763,200 +1706,242 @@
           "reader",
           {
             verbose: false,
-
-            formatsToSupport:
-              BARCODE_FORMATS,
-
+            formatsToSupport: BARCODE_FORMATS,
             useBarCodeDetectorIfSupported:
               USE_NATIVE_BARCODE_DETECTOR
           }
         );
 
+      cameras = await Html5Qrcode.getCameras();
 
-      /*
-        ขอ permission และรายการกล้องก่อน
-
-        หมายเหตุ:
-        getCameras() จะทำให้ Browser ขอสิทธิ์กล้อง
-        และหลังจากได้รับ permission แล้วจึงมักได้ label/deviceId
-        ที่สมบูรณ์กว่าเดิม
-      */
-
-      cameras =
-        await Html5Qrcode.getCameras();
-
-
-      if (
-        !cameras ||
-        cameras.length === 0
-      ) {
-
-        throw new Error(
-          "ไม่พบกล้องที่สามารถใช้งานได้"
-        );
-
+      if (!cameras || cameras.length === 0) {
+        throw new Error("ไม่พบกล้องที่สามารถใช้งานได้");
       }
 
-
       /*
-        จุดสำคัญมาก:
-        html5-qrcode ระบุว่า videoConstraints
-        จะ override cameraIdOrConfig
+        ==========================================================
+        MOBILE / TABLET / iPHONE / iPAD
+        ==========================================================
 
-        ดังนั้นการกำหนด videoConstraints แบบเดิม
-        ที่มีแค่ width/height/frameRate
-        ทำให้ { facingMode: ... } และ
-        { deviceId: ... } ที่ส่งเข้า start()
-        ถูกมองข้าม
+        ตั้งใจ LOCK ให้ใช้กล้องหลังเท่านั้น
 
-        เราจึงรวม "การเลือกกล้อง" เข้าไปใน
-        videoConstraints โดยตรง
+        เราจะไม่ใช้ getCameras()[0] เป็น fallback เพราะบน Android
+        บาง Browser กล้องหมายเลข 0 คือกล้องหน้า
+
+        ขั้นตอนที่สำคัญคือใช้ native getUserMedia() ก่อน เพื่อให้
+        Browser เป็นผู้เลือก environment camera แล้วเอา deviceId
+        ที่ได้จริงมาให้ html5-qrcode ใช้ต่อ
       */
 
       if (isMobileOrTablet()) {
 
-        /*
-          รอบที่ 1:
-          ใช้ ideal environment ก่อน
-
-          วิธีนี้ให้ Browser เลือกกล้องหลัง
-          โดยไม่ทำให้การเปิดกล้องล้มเหลวทันที
-          หากอุปกรณ์ไม่สามารถระบุ facingMode ได้
-        */
+        let rearDeviceId = null;
 
         try {
 
           setStatus(
             "loading",
-            "กำลังเลือกกล้องหลัง..."
+            "กำลังล็อกกล้องหลัง..."
           );
 
-          await startScanner(
-            {
-              facingMode: {
-                ideal: "environment"
-              }
-            },
-            true
-          );
+          const rearStream =
+            await navigator.mediaDevices.getUserMedia({
+              video: {
+                facingMode: {
+                  exact: "environment"
+                }
+              },
+              audio: false
+            });
+
+          const rearTrack =
+            rearStream.getVideoTracks()[0];
+
+          const rearSettings =
+            rearTrack?.getSettings?.() || {};
+
+          rearDeviceId =
+            rearSettings.deviceId || null;
+
+          const actualFacing =
+            String(
+              rearSettings.facingMode || ""
+            ).toLowerCase();
 
           /*
-            ตรวจสอบว่ากล้องที่เปิดจริง
-            เป็นกล้องหลังหรือไม่
+            หยุด stream ชั่วคราวทันที
+            เพราะ html5-qrcode จะเปิด stream ของตัวเอง
           */
+          rearStream.getTracks().forEach(track => {
+            try {
+              track.stop();
+            } catch (_) {}
+          });
 
-          if (isCurrentTrackRearCamera()) {
-
-            syncCurrentCameraFromTrack();
-            renderCameraList();
-
-            return;
-
+          /*
+            ถ้า Browser ระบุ facingMode และไม่ใช่ environment
+            ห้ามใช้ต่อ เพราะเราต้องการกล้องหลังเท่านั้น
+          */
+          if (
+            actualFacing &&
+            !actualFacing.includes("environment")
+          ) {
+            rearDeviceId = null;
+            throw new Error(
+              "Browser ไม่ได้เลือกกล้องหลัง"
+            );
           }
 
-          /*
-            ถ้า Browser เปิดกล้องหน้าแทน
-            ให้หยุดแล้วลอง exact environment
-          */
-
-          await stopRunningScannerOnly();
-
-        } catch (rearPreferredError) {
+        } catch (nativeRearError) {
 
           console.warn(
-            "Preferred rear camera failed:",
-            rearPreferredError
+            "Native rear-camera selection failed:",
+            nativeRearError
           );
 
-          await stopRunningScannerOnly();
+          /*
+            Fallback เฉพาะการค้นหากล้องที่ชื่อระบุว่าเป็นกล้องหลัง
+            เท่านั้น ห้าม fallback ไป camera 0 เพราะอาจเป็นกล้องหน้า
+          */
+          const rearCamera =
+            cameras.find(camera => {
+              const label =
+                String(camera.label || "").toLowerCase();
 
+              return (
+                label.includes("back") ||
+                label.includes("rear") ||
+                label.includes("environment") ||
+                label.includes("หลัง")
+              );
+            });
+
+          if (rearCamera) {
+            rearDeviceId = rearCamera.id;
+          }
         }
 
+        if (!rearDeviceId) {
+          throw new Error(
+            "ไม่สามารถระบุกล้องหลังของอุปกรณ์ได้ จึงไม่เปิดกล้องหน้าแทน"
+          );
+        }
+
+        currentCameraId = rearDeviceId;
+
+        currentCameraIndex =
+          cameras.findIndex(
+            camera => camera.id === rearDeviceId
+          );
+
+        await startScanner(
+          {
+            deviceId: {
+              exact: rearDeviceId
+            }
+          },
+          true
+        );
 
         /*
-          รอบที่ 2:
-          บังคับ environment
-
-          ถ้า Browser รองรับ
-          จะต้องเลือกกล้องหลังเท่านั้น
+          ตรวจสอบซ้ำหลัง html5-qrcode เปิดกล้องแล้ว
+          เพื่อป้องกันกรณี Browser เปลี่ยน device เอง
         */
+        const runningSettings =
+          html5QrCode?.getRunningTrackSettings?.() || {};
 
-        try {
+        const runningDeviceId =
+          runningSettings.deviceId || null;
 
-          setStatus(
-            "loading",
-            "กำลังบังคับเลือกกล้องหลัง..."
-          );
+        const rearConfirmed =
+          runningDeviceId === rearDeviceId ||
+          isCurrentTrackRearCamera();
 
-          await startScanner(
-            {
-              facingMode: {
-                exact: "environment"
-              }
-            },
-            true
-          );
-
-          if (isCurrentTrackRearCamera()) {
-
-            syncCurrentCameraFromTrack();
-            renderCameraList();
-
-            return;
-
-          }
-
-          /*
-            เปิดได้แต่ยังไม่ใช่กล้องหลัง
-            จึงไม่ถือว่าสำเร็จ
-          */
+        if (!rearConfirmed) {
 
           await stopRunningScannerOnly();
 
-        } catch (rearExactError) {
-
-          console.warn(
-            "Exact rear camera failed:",
-            rearExactError
+          throw new Error(
+            "ตรวจสอบแล้วไม่สามารถยืนยันได้ว่าเป็นกล้องหลัง จึงไม่เปิดกล้องหน้าแทน"
           );
-
-          await stopRunningScannerOnly();
-
         }
 
+        setStatus(
+          "success",
+          "เปิดกล้องหลังแล้ว"
+        );
+
+        return;
       }
 
 
       /*
-        Fallback:
-        ใช้ deviceId
+        ==========================================================
+        DESKTOP / NOTEBOOK
+        ==========================================================
 
-        มือถือ:
-          พยายามเลือกจาก label ที่บอกว่า
-          back / rear / environment
+        ไม่บังคับ front/rear
+        ใช้กล้อง Default ของ Browser/ระบบ
 
-        Desktop:
-          ใช้กล้องที่เหมาะสมตัวแรก
+        native getUserMedia({video:true}) จะให้ Browser เลือก
+        default camera ก่อน แล้วเรานำ deviceId นั้นมาให้ scanner
       */
 
-      currentCameraIndex =
-        chooseBestCameraIndex(cameras);
-
-      currentCameraId =
-        cameras[
-          currentCameraIndex
-        ].id;
-
-      renderCameraList();
-
-      await startScanner(
-        {
-          deviceId: {
-            exact: currentCameraId
-          }
-        },
-        false
+      setStatus(
+        "loading",
+        "กำลังเปิดกล้องเริ่มต้นของเครื่อง..."
       );
+
+      const defaultStream =
+        await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+
+      const defaultTrack =
+        defaultStream.getVideoTracks()[0];
+
+      const defaultSettings =
+        defaultTrack?.getSettings?.() || {};
+
+      const defaultDeviceId =
+        defaultSettings.deviceId || null;
+
+      defaultStream.getTracks().forEach(track => {
+        try {
+          track.stop();
+        } catch (_) {}
+      });
+
+      if (defaultDeviceId) {
+
+        currentCameraId = defaultDeviceId;
+
+        currentCameraIndex =
+          cameras.findIndex(
+            camera => camera.id === defaultDeviceId
+          );
+
+        await startScanner(
+          {
+            deviceId: {
+              exact: defaultDeviceId
+            }
+          },
+          false
+        );
+
+      } else {
+
+        /*
+          กรณี Browser ไม่คืน deviceId
+          ให้ html5-qrcode ใช้ default camera
+        */
+        await startScanner(
+          {},
+          false
+        );
+      }
 
     } catch (error) {
 
@@ -1968,8 +1953,6 @@
       btnStart.disabled = false;
 
       btnStop.disabled = true;
-
-      btnSwitch.disabled = true;
 
       btnTorch.disabled = true;
 
@@ -2336,9 +2319,6 @@
     btnStart.disabled = true;
 
     btnStop.disabled = false;
-
-    btnSwitch.disabled =
-      cameras.length < 2;
 
 
     setStatus(
@@ -3050,8 +3030,7 @@
 
     btnStop.disabled = true;
 
-    btnSwitch.disabled = true;
-
+    
     btnTorch.disabled = true;
 
 
@@ -3116,146 +3095,15 @@
 
 
   /* ===========================================================
-     SWITCH CAMERA
-  =========================================================== */
-
-  async function switchCamera() {
-
-    if (
-      cameras.length < 2
-    ) {
-
-      return;
-
-    }
-
-
-    currentCameraIndex =
-      (
-        currentCameraIndex + 1
-      ) % cameras.length;
-
-
-    await restartWithCamera(
-      cameras[
-        currentCameraIndex
-      ].id
-    );
-
-  }
-
-
-  /* ===========================================================
-     RESTART WITH CAMERA
-  =========================================================== */
-
-  async function restartWithCamera(
-    cameraId
-  ) {
-
-    try {
-
-      setStatus(
-        "loading",
-        "กำลังเปลี่ยนกล้อง..."
-      );
-
-
-      if (
-        html5QrCode &&
-        isScanning
-      ) {
-
-        await html5QrCode.stop();
-
-        isScanning = false;
-
-      }
-
-
-      currentCameraId =
-        cameraId;
-
-
-      await startScanner(
-      { deviceId: { exact: cameraId } },
-      false
-    );
-
-
-    } catch (error) {
-
-      console.error(
-        "Switch camera error:",
-        error
-      );
-
-      setStatus(
-        "error",
-        "ไม่สามารถเปลี่ยนกล้องได้"
-      );
-
-    }
-
-  }
-
-
-  /* ===========================================================
      CAMERA LIST
   =========================================================== */
 
   function renderCameraList() {
-
-    cameraSelect.innerHTML =
-      "";
-
-
-    cameras.forEach(
-      (camera, index) => {
-
-        const option =
-          document.createElement(
-            "option"
-          );
-
-        option.value =
-          index;
-
-        option.textContent =
-          camera.label ||
-          `Camera ${index + 1}`;
-
-
-        if (
-          index ===
-          currentCameraIndex
-        ) {
-
-          option.selected =
-            true;
-
-        }
-
-
-        cameraSelect.appendChild(
-          option
-        );
-
-      }
-    );
-
-
-    /*
-      แสดง Dropdown เฉพาะกรณี
-      มีมากกว่า 1 กล้อง
-    */
-
-    cameraSelectPanel.style.display =
-      cameras.length > 1
-        ? "block"
-        : "none";
-
+    /* Camera selection is intentionally disabled.
+       Mobile/tablet are locked to rear camera.
+       Desktop uses the browser/system default camera. */
   }
+
 
 
   /* ===========================================================
