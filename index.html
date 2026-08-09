@@ -1801,35 +1801,50 @@
 
 
       /*
-        เลือกกล้อง
-
-        มือถือ:
-        พยายามเลือกกล้องหลัง
-
-        Notebook:
-        ใช้กล้องแรกที่พบ
+        Mobile / Tablet: พยายามเปิดกล้องหลังด้วย facingMode=environment ก่อน
+        Desktop / Notebook: ใช้กล้องที่ตรวจพบตามเดิม
       */
 
-      currentCameraIndex =
-        chooseBestCameraIndex(
-          cameras
-        );
+      const preferRearCamera = isMobileOrTablet();
 
-      currentCameraId =
-        cameras[
-          currentCameraIndex
-        ].id;
+      if (preferRearCamera) {
+        try {
+          setStatus("loading", "กำลังเลือกกล้องหลัง...");
 
+          await startScanner(
+            { facingMode: { exact: "environment" } },
+            true
+          );
+
+          syncCurrentCameraFromTrack();
+          renderCameraList();
+          return;
+
+        } catch (rearError) {
+          console.warn(
+            "Rear camera preference failed, falling back to device list:",
+            rearError
+          );
+
+          try {
+            if (html5QrCode && isScanning) {
+              await html5QrCode.stop();
+              isScanning = false;
+            }
+          } catch (stopError) {
+            console.warn("Fallback stop error:", stopError);
+          }
+        }
+      }
+
+      currentCameraIndex = chooseBestCameraIndex(cameras);
+      currentCameraId = cameras[currentCameraIndex].id;
 
       renderCameraList();
 
-
-      /*
-        เริ่ม Scanner
-      */
-
       await startScanner(
-        currentCameraId
+        { deviceId: { exact: currentCameraId } },
+        false
       );
 
 
@@ -1870,6 +1885,39 @@
   /* ===========================================================
      CHOOSE BEST CAMERA
   =========================================================== */
+
+  function isMobileOrTablet() {
+    const ua = navigator.userAgent || "";
+    if (/Android/i.test(ua)) return true;
+    if (/iPhone|iPad|iPod/i.test(ua)) return true;
+    if (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) return true;
+    return false;
+  }
+
+  function syncCurrentCameraFromTrack() {
+    try {
+      const settings = html5QrCode?.getRunningTrackSettings?.();
+      const actualDeviceId = settings?.deviceId;
+      if (actualDeviceId) {
+        const index = cameras.findIndex(camera => camera.id === actualDeviceId);
+        if (index >= 0) {
+          currentCameraIndex = index;
+          currentCameraId = cameras[index].id;
+          return;
+        }
+      }
+      const rearIndex = cameras.findIndex(camera => {
+        const text = String(camera.label || "").toLowerCase();
+        return text.includes("back") || text.includes("rear") || text.includes("environment");
+      });
+      if (rearIndex >= 0) {
+        currentCameraIndex = rearIndex;
+        currentCameraId = cameras[rearIndex].id;
+      }
+    } catch (error) {
+      console.warn("Unable to sync current camera:", error);
+    }
+  }
 
   function chooseBestCameraIndex(
     deviceList
@@ -1926,7 +1974,8 @@
   =========================================================== */
 
   async function startScanner(
-    cameraId
+    cameraConfig,
+    preferRear = false
   ) {
 
     /*
@@ -2026,19 +2075,10 @@
 
 
     await html5QrCode.start(
-
-      {
-        deviceId: {
-          exact: cameraId
-        }
-      },
-
+      cameraConfig,
       scanConfig,
-
       onScanSuccess,
-
       onScanFailure
-
     );
 
 
@@ -2895,8 +2935,9 @@
 
 
       await startScanner(
-        cameraId
-      );
+      { deviceId: { exact: cameraId } },
+      false
+    );
 
 
     } catch (error) {
