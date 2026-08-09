@@ -10,7 +10,7 @@
 
   <meta name="theme-color" content="#111827">
 
-  <title>Barcode Camera Test</title>
+  <title>Barcode Scanner</title>
 
   <!--
     html5-qrcode
@@ -1042,11 +1042,11 @@
   <header class="header">
 
     <h1 class="header-title">
-      📊 Barcode Camera Test
+      📷 Barcode Scanner
     </h1>
 
     <p class="header-subtitle">
-      ระบบทดสอบกล้องสำหรับอ่าน Barcode แบบ 1D
+      ระบบสแกน Barcode แบบ 1D
     </p>
 
     <div class="header-badge">
@@ -1433,11 +1433,11 @@
 
   <footer class="footer">
 
-    Barcode Camera Test
+    Barcode Scanner
 
     <br>
 
-    Client-side Barcode Testing
+    Barcode Scanner
 
   </footer>
 
@@ -1521,6 +1521,9 @@
   let lastBarcode = "";
 
   let lastScanTime = 0;
+
+  // ป้องกันการส่ง Barcode กลับไปยังหน้า GAS ซ้ำ
+  let barcodeReturned = false;
 
   let currentCapabilities = null;
 
@@ -1687,6 +1690,8 @@
   =========================================================== */
 
   async function startCamera() {
+
+    barcodeReturned = false;
 
     if (isScanning) {
       return;
@@ -1977,7 +1982,7 @@
 
   /*
     หยุดเฉพาะ scanner ที่กำลังทำงานอยู่
-    ใช้ตอนทดสอบกล้องหลังหลายวิธี
+    ใช้ระหว่างการตรวจสอบกล้องหลัง
   */
 
   async function stopRunningScannerOnly() {
@@ -2871,6 +2876,12 @@
 
     playBeep();
 
+    // ส่งค่าไปยังหน้า GAS และปิดหน้าต่าง Scanner
+    returnBarcodeToOpener(
+      decodedText,
+      format
+    );
+
   }
 
 
@@ -2933,6 +2944,82 @@
 
     return "BARCODE";
 
+  }
+
+
+  /* ===========================================================
+     RETURN BARCODE TO OPENER / GAS
+  =========================================================== */
+
+  async function returnBarcodeToOpener(
+    value,
+    format
+  ) {
+
+    if (barcodeReturned) {
+      return;
+    }
+
+    barcodeReturned = true;
+
+    const payload = {
+      type: "BARCODE_SCANNED",
+      value: String(value || ""),
+      format: String(format || "BARCODE"),
+      timestamp: new Date().toISOString()
+    };
+
+    /*
+      กรณีเปิด Scanner จากหน้า GAS ด้วย window.open()
+      ให้ส่งค่ากลับไปยังหน้าต่างต้นทาง แล้วปิดหน้าต่าง Scanner
+    */
+    if (window.opener && !window.opener.closed) {
+
+      try {
+        window.opener.postMessage(payload, "*");
+      } catch (error) {
+        console.warn("Unable to return Barcode to opener:", error);
+      }
+
+      try {
+        window.opener.focus();
+      } catch (_) {}
+
+      // หยุดกล้องก่อนปิดหน้าต่าง
+      try {
+        if (html5QrCode && isScanning) {
+          await html5QrCode.stop();
+        }
+      } catch (_) {}
+
+      isScanning = false;
+
+      setTimeout(() => {
+        try {
+          window.close();
+        } catch (_) {}
+      }, 100);
+
+      return;
+    }
+
+    /*
+      Fallback: ถ้า Browser ไม่มี opener ให้ใช้ returnUrl
+      ที่หน้า GAS ส่งมาใน query string
+    */
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const returnUrl = params.get("returnUrl");
+
+      if (returnUrl) {
+        const url = new URL(returnUrl);
+        url.searchParams.set("barcode", String(value || ""));
+        url.searchParams.set("barcodeFormat", String(format || "BARCODE"));
+        window.location.href = url.toString();
+      }
+    } catch (error) {
+      console.warn("Unable to use returnUrl:", error);
+    }
   }
 
 
@@ -3266,21 +3353,6 @@
         decodedText,
         "BARCODE"
       );
-
-      if (
-  window.opener &&
-  !window.opener.closed
-) {
-
-  window.opener.postMessage(
-    {
-      type: 'BARCODE_SCANNED',
-      value: decodedText
-    },
-    '*'
-  );
-
-}
 
 
       setStatus(
