@@ -1486,7 +1486,7 @@
     10 FPS = ประมวลผลประมาณทุก 100ms
   */
 
-  const SCANNER_FPS = 10;
+  const SCANNER_FPS = 15;
 
 
   /*
@@ -2199,9 +2199,11 @@
       โดยเฉพาะ CODE_128 / EAN
     */
 
+    const isDesktop = !isMobileOrTablet();
+
     const scanConfig = {
 
-      fps: SCANNER_FPS,
+      fps: isDesktop ? 15 : SCANNER_FPS,
 
       /*
         ให้ library ใช้พื้นที่ scan
@@ -2216,20 +2218,25 @@
         viewfinderHeight
       ) => {
 
+        const widthRatio = isDesktop ? 0.92 : 0.84;
+        const heightRatio = isDesktop ? 0.42 : 0.30;
+        const maxWidth = isDesktop ? 1400 : 900;
+        const maxHeight = isDesktop ? 360 : 190;
+
         const width =
           Math.min(
             Math.floor(
-              viewfinderWidth * 0.84
+              viewfinderWidth * widthRatio
             ),
-            900
+            maxWidth
           );
 
         const height =
           Math.min(
             Math.floor(
-              viewfinderHeight * 0.30
+              viewfinderHeight * heightRatio
             ),
-            190
+            maxHeight
           );
 
         return {
@@ -2283,18 +2290,33 @@
         ตามความสามารถจริงของอุปกรณ์
       */
 
-      width: {
-        ideal: 1280
-      },
+      width: isDesktop
+        ? {
+            min: 1280,
+            ideal: 1920
+          }
+        : {
+            ideal: 1280
+          },
 
-      height: {
-        ideal: 720
-      },
+      height: isDesktop
+        ? {
+            min: 720,
+            ideal: 1080
+          }
+        : {
+            ideal: 720
+          },
 
-      frameRate: {
-        ideal: 30,
-        max: 60
-      }
+      frameRate: isDesktop
+        ? {
+            ideal: 30,
+            max: 30
+          }
+        : {
+            ideal: 30,
+            max: 60
+          }
 
     };
 
@@ -2338,6 +2360,46 @@
 
     await updateCameraInformation();
 
+  }
+
+
+  /* ===========================================================
+     DESKTOP CAMERA OPTIMIZATION
+  =========================================================== */
+
+  async function optimizeDesktopCamera() {
+    if (!isScanning || !html5QrCode) return;
+
+    try {
+      const capabilities =
+        html5QrCode.getRunningTrackCapabilities?.() || {};
+
+      const advanced = {};
+
+      if (Array.isArray(capabilities.focusMode) &&
+          capabilities.focusMode.includes("continuous")) {
+        advanced.focusMode = "continuous";
+      }
+
+      if (Array.isArray(capabilities.exposureMode) &&
+          capabilities.exposureMode.includes("continuous")) {
+        advanced.exposureMode = "continuous";
+      }
+
+      if (Array.isArray(capabilities.whiteBalanceMode) &&
+          capabilities.whiteBalanceMode.includes("continuous")) {
+        advanced.whiteBalanceMode = "continuous";
+      }
+
+      if (Object.keys(advanced).length > 0) {
+        await html5QrCode.applyVideoConstraints({
+          advanced: [advanced]
+        });
+      }
+    } catch (error) {
+      // Some webcams do not expose these controls; scanning can continue normally.
+      console.warn("Desktop camera optimization skipped:", error);
+    }
   }
 
 
