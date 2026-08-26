@@ -89,7 +89,7 @@
       } catch(e) {}
     }
 
-    // เมื่อกล้องอ่านบาร์โค้ดได้
+   // เมื่อกล้องอ่านบาร์โค้ดได้
     function onScanSuccess(decodedText) {
       if (isCooldown) return;
       isCooldown = true;
@@ -97,8 +97,11 @@
 
       showOverlay('<i class="fa-solid fa-circle-notch fa-spin text-primary"></i>', 'กำลังตรวจสอบ...', 'โปรดรอสักครู่...', 'text-dark');
 
+      // อัปเกรดให้รองรับทั้งแบบ Popup (opener) และแบบ Iframe (parent)
       if (window.opener && !window.opener.closed) {
         window.opener.postMessage({ type: "FAST_SCAN", value: decodedText }, "*");
+      } else if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: "FAST_SCAN", value: decodedText }, "*");
       } else {
         showOverlay('<i class="fa-solid fa-triangle-exclamation text-danger"></i>', 'ข้อผิดพลาด', 'ขาดการเชื่อมต่อกับหน้าเว็บหลัก', 'text-danger');
         setTimeout(() => { hideOverlay(); isCooldown = false; }, 3000);
