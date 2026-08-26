@@ -166,7 +166,6 @@
       document.getElementById('scanBox').style.display = 'block';
 
       try {
-        // ล็อกให้อ่านเฉพาะบาร์โค้ดแท่งมาตรฐานเท่านั้น
         const formats = [
           Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39,
           Html5QrcodeSupportedFormats.CODE_93, Html5QrcodeSupportedFormats.CODABAR,
@@ -175,7 +174,26 @@
         ];
         html5QrCode = new Html5Qrcode("reader", { verbose: false, formatsToSupport: formats });
         
-        const scanConfig = { fps: 15, qrbox: { width: 350, height: 120 }, aspectRatio: 16/9, disableFlip: true };
+        // 🔴 [อัปเกรด] เปลี่ยนมาใช้การตั้งค่ากล้องแบบ Dynamic เหมือนกล้องปกติ
+        const isDesktop = !isMobileOrTablet();
+        const scanConfig = {
+          fps: 15,
+          // ให้ขยายกรอบตามสัดส่วนจอ เพื่อให้บาร์โค้ดเข้าเต็มแท่ง
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const widthRatio = isDesktop ? 0.92 : 0.88; // กว้างเกือบสุดขอบจอ
+            const heightRatio = isDesktop ? 0.42 : 0.35; // ความสูงกำลังดีสำหรับบาร์โค้ด
+            return {
+              width: Math.floor(viewfinderWidth * widthRatio),
+              height: Math.floor(viewfinderHeight * heightRatio)
+            };
+          },
+          aspectRatio: 16/9,
+          disableFlip: true,
+          // บังคับโฟกัสต่อเนื่อง (ถ้ากล้องรองรับ) ช่วยให้อ่านแม่นขึ้น
+          videoConstraints: {
+            advanced: [{ focusMode: "continuous" }]
+          }
+        };
 
         if (isMobileOrTablet()) {
           const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } });
