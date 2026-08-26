@@ -165,14 +165,13 @@
       return (/Android/i.test(ua) || /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1));
     }
 
-    // ระบบเปิดกล้อง (อัปเกรดล็อก Format ป้องกันกล้องเดาเลขมั่ว)
+    // ระบบเปิดกล้อง (อัปเกรดหารายชื่อกล้องหลังแบบแม่นยำ)
     async function startCamera() {
       if (isScanning) return;
       document.getElementById('btnStart').style.display = 'none';
       document.getElementById('scanBox').style.display = 'block';
 
       try {
-        // ล็อกให้อ่านเฉพาะบาร์โค้ดแท่งมาตรฐานเท่านั้น
         const formats = [
           Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39,
           Html5QrcodeSupportedFormats.CODE_93, Html5QrcodeSupportedFormats.CODABAR,
@@ -181,12 +180,11 @@
         ];
         html5QrCode = new Html5Qrcode("reader", { verbose: false, formatsToSupport: formats });
         
-        // 🔴 [แก้ใหม่] ขยายกรอบให้กว้างตามขนาดหน้าจอ เพื่อให้บาร์โค้ดเข้าเต็มแท่ง
         const isDesktop = !isMobileOrTablet();
         const scanConfig = { 
           fps: 15, 
           qrbox: (viewfinderWidth, viewfinderHeight) => {
-            const widthRatio = isDesktop ? 0.92 : 0.88; // กว้าง 88-92% ของจอ
+            const widthRatio = isDesktop ? 0.92 : 0.88;
             const heightRatio = isDesktop ? 0.42 : 0.35;
             return {
               width: Math.floor(viewfinderWidth * widthRatio),
@@ -196,19 +194,38 @@
           aspectRatio: 16/9, 
           disableFlip: true,
           videoConstraints: {
-            advanced: [{ focusMode: "continuous" }] // บังคับโฟกัสเพื่อความแม่นยำ
+            advanced: [{ focusMode: "continuous" }]
           }
         };
 
+        // 🔴 [อัปเกรด] ระบบค้นหากล้องหลังแบบแม่นยำ (ป้องกันเปิดกล้องหน้า)
+        let cameraConfig = { facingMode: "environment" }; // ค่าเริ่มต้น
+
         if (isMobileOrTablet()) {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } });
-          const deviceId = stream.getVideoTracks()[0].getSettings().deviceId;
-          stream.getTracks().forEach(t => t.stop());
-          
-          await html5QrCode.start({ deviceId: { exact: deviceId } }, scanConfig, onScanSuccess, () => {});
-        } else {
-          await html5QrCode.start({ facingMode: "environment" }, scanConfig, onScanSuccess, () => {});
+          try {
+            // ดึงรายชื่อกล้องทั้งหมดในเครื่อง
+            const cameras = await Html5Qrcode.getCameras();
+            if (cameras && cameras.length > 0) {
+              // ค้นหากล้องที่มีคำระบุว่าเป็นกล้องหลัง
+              const rearCamera = cameras.find(c => {
+                const label = String(c.label || '').toLowerCase();
+                return label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('หลัง');
+              });
+
+              if (rearCamera) {
+                cameraConfig = { deviceId: { exact: rearCamera.id } }; // บังคับล็อกกล้องหลังตัวนี้
+              } else {
+                // ถ้าหาจากชื่อไม่เจอ ให้ดึงกล้องตัวสุดท้ายมาใช้ (ใน Android มักจะเป็นกล้องหลัง)
+                cameraConfig = { deviceId: { exact: cameras[cameras.length - 1].id } };
+              }
+            }
+          } catch (camErr) {
+            console.log("ไม่สามารถดึงรายชื่อกล้องได้ ใช้ค่าเริ่มต้นแทน");
+          }
         }
+
+        // เริ่มเปิดกล้อง
+        await html5QrCode.start(cameraConfig, scanConfig, onScanSuccess, () => {});
         isScanning = true;
         
         setTimeout(() => {
