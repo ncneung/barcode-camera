@@ -129,14 +129,22 @@
       return (/Android/i.test(ua) || /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1));
     }
 
-    // ระบบเปิดกล้อง
+    // ระบบเปิดกล้อง (อัปเกรดล็อก Format ป้องกันกล้องเดาเลขมั่ว)
     async function startCamera() {
       if (isScanning) return;
       document.getElementById('btnStart').style.display = 'none';
       document.getElementById('scanBox').style.display = 'block';
 
       try {
-        html5QrCode = new Html5Qrcode("reader");
+        // ล็อกให้อ่านเฉพาะบาร์โค้ดแท่งมาตรฐานเท่านั้น
+        const formats = [
+          Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.CODE_93, Html5QrcodeSupportedFormats.CODABAR,
+          Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.ITF, Html5QrcodeSupportedFormats.UPC_A
+        ];
+        html5QrCode = new Html5Qrcode("reader", { verbose: false, formatsToSupport: formats });
+        
         const scanConfig = { fps: 15, qrbox: { width: 350, height: 120 }, aspectRatio: 16/9, disableFlip: true };
 
         if (isMobileOrTablet()) {
@@ -150,7 +158,6 @@
         }
         isScanning = true;
         
-        // ตรวจสอบว่ากล้องรองรับไฟฉายไหม
         setTimeout(() => {
           const capabilities = html5QrCode.getRunningTrackCapabilities?.() || {};
           if (capabilities.torch || capabilities.torchFeature) {
