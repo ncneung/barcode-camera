@@ -97,6 +97,11 @@
     // 2. เมื่อกล้องอ่านบาร์โค้ดได้
     async function onScanSuccess(decodedText) {
       if (isCooldown) return;
+      
+      // 🔴 [เพิ่มใหม่] กรองเอาเฉพาะตัวเลข และเช็กความยาว (ดักจับเศษบาร์โค้ด)
+      const cleanId = String(decodedText).replace(/\D/g, '');
+      if (cleanId.length < 8) return; // ถ้ารหัสสั้นกว่า 8 หลัก ให้กล้องเมินเฉยและสแกนต่อไปเลย
+
       isCooldown = true;
       playBeep('success');
 
@@ -110,12 +115,12 @@
       }
 
       try {
-        // 3. ยิง API ตรงเข้าเซิร์ฟเวอร์ Google Apps Script แบบไร้รอยต่อ
+        // 3. ยิง API ตรงเข้าเซิร์ฟเวอร์ Google Apps Script
         const response = await fetch(API_URL, {
           method: "POST",
-          redirect: "follow", // ป้องกันปัญหา CORS ใน GAS
+          redirect: "follow", 
           headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ studentId: decodedText, apiKey: API_KEY })
+          body: JSON.stringify({ studentId: cleanId, apiKey: API_KEY }) // 🔴 เปลี่ยนไปส่งค่า cleanId ที่กรองแล้วแทน
         });
 
         // 4. รอรับผลลัพธ์
@@ -134,6 +139,7 @@
         setTimeout(() => { hideOverlay(); isCooldown = false; }, 2500);
       }
     }
+    
 
     // รอรับผลลัพธ์จาก Google Apps Script
     window.addEventListener("message", (event) => {
@@ -166,6 +172,7 @@
       document.getElementById('scanBox').style.display = 'block';
 
       try {
+        // ล็อกให้อ่านเฉพาะบาร์โค้ดแท่งมาตรฐานเท่านั้น
         const formats = [
           Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39,
           Html5QrcodeSupportedFormats.CODE_93, Html5QrcodeSupportedFormats.CODABAR,
@@ -174,24 +181,22 @@
         ];
         html5QrCode = new Html5Qrcode("reader", { verbose: false, formatsToSupport: formats });
         
-        // 🔴 [อัปเกรด] เปลี่ยนมาใช้การตั้งค่ากล้องแบบ Dynamic เหมือนกล้องปกติ
+        // 🔴 [แก้ใหม่] ขยายกรอบให้กว้างตามขนาดหน้าจอ เพื่อให้บาร์โค้ดเข้าเต็มแท่ง
         const isDesktop = !isMobileOrTablet();
-        const scanConfig = {
-          fps: 15,
-          // ให้ขยายกรอบตามสัดส่วนจอ เพื่อให้บาร์โค้ดเข้าเต็มแท่ง
+        const scanConfig = { 
+          fps: 15, 
           qrbox: (viewfinderWidth, viewfinderHeight) => {
-            const widthRatio = isDesktop ? 0.92 : 0.88; // กว้างเกือบสุดขอบจอ
-            const heightRatio = isDesktop ? 0.42 : 0.35; // ความสูงกำลังดีสำหรับบาร์โค้ด
+            const widthRatio = isDesktop ? 0.92 : 0.88; // กว้าง 88-92% ของจอ
+            const heightRatio = isDesktop ? 0.42 : 0.35;
             return {
               width: Math.floor(viewfinderWidth * widthRatio),
               height: Math.floor(viewfinderHeight * heightRatio)
             };
-          },
-          aspectRatio: 16/9,
+          }, 
+          aspectRatio: 16/9, 
           disableFlip: true,
-          // บังคับโฟกัสต่อเนื่อง (ถ้ากล้องรองรับ) ช่วยให้อ่านแม่นขึ้น
           videoConstraints: {
-            advanced: [{ focusMode: "continuous" }]
+            advanced: [{ focusMode: "continuous" }] // บังคับโฟกัสเพื่อความแม่นยำ
           }
         };
 
