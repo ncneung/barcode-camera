@@ -99,7 +99,7 @@
       if (isCooldown) return;
 // 🔴 [เพิ่มใหม่] กรองเอาเฉพาะตัวเลข และเช็กความยาว (ดักจับเศษบาร์โค้ด)
       const cleanId = String(decodedText).replace(/\D/g, '');
-      if (cleanId.length < 8) return; // ถ้ารหัสสั้นกว่า 8 หลัก ให้กล้องเมินเฉยและสแกนต่อไปเลย
+      if (cleanId.length < 10) return; // ถ้ารหัสสั้นกว่า 10 หลัก ให้กล้องเมินเฉยและสแกนต่อไปเลย
       
       isCooldown = true;
       playBeep('success');
