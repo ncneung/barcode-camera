@@ -89,22 +89,49 @@
       } catch(e) {}
     }
 
-   // เมื่อกล้องอ่านบาร์โค้ดได้
-    function onScanSuccess(decodedText) {
+   // 1. อ่านพิกัด URL และ API Key ที่ส่งมาจากเว็บหลัก
+    const urlParams = new URLSearchParams(window.location.search);
+    const API_URL = urlParams.get('apiUrl') || "";
+    const API_KEY = urlParams.get('apiKey') || "";
+
+    // 2. เมื่อกล้องอ่านบาร์โค้ดได้
+    async function onScanSuccess(decodedText) {
       if (isCooldown) return;
       isCooldown = true;
       playBeep('success');
 
       showOverlay('<i class="fa-solid fa-circle-notch fa-spin text-primary"></i>', 'กำลังตรวจสอบ...', 'โปรดรอสักครู่...', 'text-dark');
 
-      // อัปเกรดให้รองรับทั้งแบบ Popup (opener) และแบบ Iframe (parent)
-      if (window.opener && !window.opener.closed) {
-        window.opener.postMessage({ type: "FAST_SCAN", value: decodedText }, "*");
-      } else if (window.parent && window.parent !== window) {
-        window.parent.postMessage({ type: "FAST_SCAN", value: decodedText }, "*");
-      } else {
-        showOverlay('<i class="fa-solid fa-triangle-exclamation text-danger"></i>', 'ข้อผิดพลาด', 'ขาดการเชื่อมต่อกับหน้าเว็บหลัก', 'text-danger');
+      // ป้องกันการแอบเปิดหน้าเว็บโดยไม่มีลิงก์ API
+      if (!API_URL) {
+        showOverlay('<i class="fa-solid fa-triangle-exclamation text-danger"></i>', 'ข้อผิดพลาด', 'ไม่พบลิงก์เชื่อมต่อ API', 'text-danger');
         setTimeout(() => { hideOverlay(); isCooldown = false; }, 3000);
+        return;
+      }
+
+      try {
+        // 3. ยิง API ตรงเข้าเซิร์ฟเวอร์ Google Apps Script แบบไร้รอยต่อ
+        const response = await fetch(API_URL, {
+          method: "POST",
+          redirect: "follow", // ป้องกันปัญหา CORS ใน GAS
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ studentId: decodedText, apiKey: API_KEY })
+        });
+
+        // 4. รอรับผลลัพธ์
+        const data = await response.json();
+        
+        if (data.success) {
+          showOverlay('<i class="fa-solid fa-circle-check text-success"></i>', data.name, 'บันทึกข้อมูลเรียบร้อยแล้ว', 'text-success');
+        } else {
+          playBeep('error');
+          showOverlay('<i class="fa-solid fa-circle-xmark text-danger"></i>', 'ไม่สามารถบันทึกได้', data.message, 'text-danger');
+        }
+      } catch (error) {
+        playBeep('error');
+        showOverlay('<i class="fa-solid fa-triangle-exclamation text-danger"></i>', 'ข้อผิดพลาด', 'เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว', 'text-danger');
+      } finally {
+        setTimeout(() => { hideOverlay(); isCooldown = false; }, 2500);
       }
     }
 
