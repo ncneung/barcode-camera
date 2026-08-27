@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Fast Track Scanner | CWIE</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Sarabun', sans-serif; background: #f8fafc; color: #0f172a; margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; overflow: hidden;}
+    
+    .header { background: #ffffff; padding: 15px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; position: relative; z-index: 10; border-bottom: 2px solid #10b981; }
+    
+    .camera-container { flex-grow: 1; position: relative; display: flex; align-items: center; justify-content: center; background: #000; overflow: hidden; }
+    #reader { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+    #reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
+    #reader__dashboard_section, #reader__status_span, #reader__header_message { display: none !important; }
+    
+    /* กรอบเล็งบาร์โค้ด */
+    .scan-box { position: absolute; width: 85%; max-width: 500px; height: 140px; border: 4px solid rgba(255, 255, 255, 0.8); border-radius: 16px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); z-index: 5; pointer-events: none;}
+    .scan-box::after { content: ""; position: absolute; left: 10px; right: 10px; top: 50%; height: 3px; background: #10b981; box-shadow: 0 0 12px #10b981; animation: scanLine 2s linear infinite; }
+    @keyframes scanLine { 0% { transform: translateY(-40px); } 50% { transform: translateY(40px); } 100% { transform: translateY(-40px); } }
+
+    /* จอ Overlay สำหรับโชว์ชื่อ */
+    .result-overlay { position: absolute; inset: 0; background: rgba(255, 255, 255, 0.95); z-index: 20; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; animation: popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+    .result-icon { font-size: 5.5rem; margin-bottom: 20px; }
+    .result-name { font-size: 2.2rem; font-weight: 800; line-height: 1.3; margin-bottom: 10px; word-break: break-word; }
+    .result-status { font-size: 1.2rem; font-weight: 600; color: #64748b; }
+    
+    .btn-start-camera { position: absolute; z-index: 15; padding: 16px 35px; font-size: 1.2rem; font-weight: 800; border-radius: 50px; background: #10b981; color: white; border: none; box-shadow: 0 10px 25px rgba(16,185,129,0.4); }
+    
+    /* ปุ่มไฟฉาย (Floating Button) */
+    .btn-torch { position: absolute; top: 20px; right: 20px; z-index: 15; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.2); backdrop-filter: blur(5px); color: white; border: 2px solid rgba(255,255,255,0.5); font-size: 1.2rem; display: none; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: 0.3s; }
+    .btn-torch.active { background: #f59e0b; border-color: #f59e0b; color: #fff; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.5); }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h4 class="mb-0 fw-bold text-success"><i class="fa-solid fa-bolt me-2 text-warning"></i>สแกนด่วนต่อเนื่อง</h4>
+    <div class="small text-muted fw-bold mt-1">โหมด Fast Track บันทึกอัตโนมัติ (ห้ามปิดหน้าต่างนี้)</div>
+  </div>
+
+  <div class="camera-container">
+    <button id="btnStart" class="btn-start-camera" onclick="startCamera()"><i class="fa-solid fa-camera me-2"></i>เปิดกล้องสแกน</button>
+    <button id="btnTorch" class="btn-torch" onclick="toggleTorch()"><i class="fa-solid fa-lightbulb"></i></button>
+    
+    <div id="reader"></div>
+    <div class="scan-box" id="scanBox" style="display:none;"></div>
+    
+    <div id="resultOverlay" class="result-overlay">
+      <div id="resIcon" class="result-icon text-primary"><i class="fa-solid fa-circle-notch fa-spin"></i></div>
+      <div id="resName" class="result-name text-dark">กำลังตรวจสอบ...</div>
+      <div id="resStatus" class="result-status">โปรดรอสักครู่</div>
+    </div>
+  </div>
+
+  <script>
+    let html5QrCode = null;
+    let isScanning = false;
+    let isCooldown = false;
+    let isTorchOn = false;
+
+    // ===== Barcode validation / confirmation =====
+    // ปรับค่านี้ให้ตรงกับความยาว Barcode จริงของระบบ
+    // หาก Barcode ของคุณมี 10 หลัก ให้เปลี่ยนเป็น 10 เป็นต้น
+    const EXPECTED_LENGTH = 10;
+    const CONFIRM_READS_REQUIRED = 2;
+    let candidateBarcode = "";
+    let candidateReads = 0;
+
+    function showOverlay(iconHtml, nameText, statusText, colorClass) {
+      const overlay = document.getElementById('resultOverlay');
+      document.getElementById('resIcon').innerHTML = iconHtml;
+      document.getElementById('resName').innerHTML = nameText;
+      document.getElementById('resName').className = `result-name ${colorClass}`;
+      document.getElementById('resStatus').innerHTML = statusText;
+      overlay.style.display = 'flex';
+    }
+
+    function hideOverlay() {
+      document.getElementById('resultOverlay').style.display = 'none';
+    }
+
+    function playBeep(type = 'success') {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        if (type === 'success') {
+          osc.frequency.setValueAtTime(880, ctx.currentTime);
+          gain.gain.value = 0.1;
+        } else {
+          osc.frequency.setValueAtTime(300, ctx.currentTime);
+          gain.gain.value = 0.2;
+        }
+
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+      } catch (e) {}
+    }
+
+    // 1. อ่าน URL และ API Key ที่ส่งมาจากเว็บหลัก
+    const urlParams = new URLSearchParams(window.location.search);
+    const API_URL = urlParams.get('apiUrl') || "";
+    const API_KEY = urlParams.get('apiKey') || "";
+
+    function normalizeBarcode(decodedText) {
+      // ระบบนี้ต้องการ Barcode ที่เป็นตัวเลขเท่านั้น
+      return String(decodedText ?? "").replace(/\D/g, "");
+    }
+
+    function resetBarcodeCandidate() {
+      candidateBarcode = "";
+      candidateReads = 0;
+    }
+
+    // 2. เมื่อกล้องอ่าน Barcode ได้
+    async function onScanSuccess(decodedText) {
+      if (isCooldown) return;
+
+      const cleanId = normalizeBarcode(decodedText);
+
+      // ต้องได้ตัวเลขครบตามความยาวที่กำหนดก่อน
+      if (cleanId.length !== EXPECTED_LENGTH) {
+        console.log("[Scanner] Ignored incomplete barcode:", decodedText, "=>", cleanId);
+        resetBarcodeCandidate();
+        return;
+      }
+
+      // ยืนยันว่ากล้องอ่าน Barcode เดิมซ้ำติดต่อกัน
+      if (cleanId === candidateBarcode) {
+        candidateReads++;
+      } else {
+        candidateBarcode = cleanId;
+        candidateReads = 1;
+      }
+
+      console.log(
+        `[Scanner] Candidate: ${candidateBarcode} (${candidateReads}/${CONFIRM_READS_REQUIRED})`
+      );
+
+      if (candidateReads < CONFIRM_READS_REQUIRED) return;
+
+      // ยืนยันสำเร็จแล้ว ล็อกการยิง API
+      isCooldown = true;
+      resetBarcodeCandidate();
+      playBeep('success');
+
+      showOverlay(
+        '<i class="fa-solid fa-circle-notch fa-spin text-primary"></i>',
+        'กำลังตรวจสอบ...',
+        `กำลังตรวจสอบรหัส ${cleanId}`,
+        'text-dark'
+      );
+
+      // ป้องกันการเปิดหน้าเว็บโดยไม่มี API
+      if (!API_URL) {
+        showOverlay(
+          '<i class="fa-solid fa-triangle-exclamation text-danger"></i>',
+          'ข้อผิดพลาด',
+          'ไม่พบลิงก์เชื่อมต่อ API',
+          'text-danger'
+        );
+        setTimeout(() => {
+          hideOverlay();
+          isCooldown = false;
+        }, 3000);
+        return;
+      }
+
+      try {
+        // ส่ง cleanId ที่ผ่านการตรวจแล้ว ไม่ส่ง decodedText ดิบ
+        const response = await fetch(API_URL, {
+          method: "POST",
+          redirect: "follow",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify({
+            studentId: cleanId,
+            apiKey: API_KEY
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+          showOverlay(
+            '<i class="fa-solid fa-circle-check text-success"></i>',
+            data.name || cleanId,
+            'บันทึกข้อมูลเรียบร้อยแล้ว',
+            'text-success'
+          );
+        } else {
+          playBeep('error');
+          showOverlay(
+            '<i class="fa-solid fa-circle-xmark text-danger"></i>',
+            'ไม่สามารถบันทึกได้',
+            data.message || 'ไม่พบข้อมูล',
+            'text-danger'
+          );
+        }
+      } catch (error) {
+        console.error("[Scanner] API error:", error);
+        playBeep('error');
+        showOverlay(
+          '<i class="fa-solid fa-triangle-exclamation text-danger"></i>',
+          'ข้อผิดพลาด',
+          'เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว',
+          'text-danger'
+        );
+      } finally {
+        setTimeout(() => {
+          hideOverlay();
+          isCooldown = false;
+          resetBarcodeCandidate();
+        }, 2500);
+      }
+    }
+
+    // เก็บไว้รองรับกรณีหน้า GAS ส่งผลกลับด้วย postMessage
+    window.addEventListener("message", (event) => {
+      const data = event.data;
+
+      if (!data || data.type !== "FAST_SCAN_RESULT") return;
+
+      if (data.success) {
+        showOverlay(
+          '<i class="fa-solid fa-circle-check text-success"></i>',
+          data.name || 'สำเร็จ',
+          'บันทึกข้อมูลเรียบร้อยแล้ว',
+          'text-success'
+        );
+      } else {
+        playBeep('error');
+        showOverlay(
+          '<i class="fa-solid fa-circle-xmark text-danger"></i>',
+          'ไม่สามารถบันทึกได้',
+          data.message || 'ไม่พบข้อมูล',
+          'text-danger'
+        );
+      }
+
+      setTimeout(() => {
+        hideOverlay();
+        isCooldown = false;
+        resetBarcodeCandidate();
+      }, 2500);
+    });
+
+    function isMobileOrTablet() {
+      const ua = navigator.userAgent || "";
+      return (
+        /Android/i.test(ua) ||
+        /iPhone|iPad|iPod/i.test(ua) ||
+        (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1)
+      );
+    }
+
+    // ตรวจว่า browser/device พร้อมใช้กล้องหรือไม่
+    function checkCameraSupport() {
+      return !!(
+        navigator.mediaDevices &&
+        typeof navigator.mediaDevices.getUserMedia === "function"
+      );
+    }
+
+    // 3. ระบบเปิดกล้อง
+    async function startCamera() {
+      if (isScanning) return;
+
+      if (!checkCameraSupport()) {
+        alert("เบราว์เซอร์นี้ไม่รองรับการเปิดกล้องผ่านเว็บไซต์");
+        return;
+      }
+
+      document.getElementById('btnStart').style.display = 'none';
+      document.getElementById('scanBox').style.display = 'block';
+
+      try {
+        // Barcode 1D: ใช้เฉพาะ format ที่ระบบต้องการ
+        const formats = [
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.CODE_93,
+          Html5QrcodeSupportedFormats.CODABAR,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.UPC_A
+        ];
+
+        html5QrCode = new Html5Qrcode("reader", {
+          verbose: false,
+          formatsToSupport: formats
+        });
+
+        // ใช้ 4:3 ซึ่งเหมาะกับกล้องมือถือ/iPad มากกว่า 16:9
+        const scanConfig = {
+          fps: 10,
+          qrbox: function(viewfinderWidth, viewfinderHeight) {
+            // กล่องอ่าน Barcode ให้กว้าง แต่ไม่เกินพื้นที่กล้อง
+            const width = Math.min(
+              Math.floor(viewfinderWidth * 0.85),
+              500
+            );
+            const height = Math.min(
+              Math.max(Math.floor(width * 0.32), 100),
+              180
+            );
+            return { width, height };
+          },
+          aspectRatio: 4 / 3,
+          disableFlip: true
+        };
+
+        if (isMobileOrTablet()) {
+          // ขอ permission และหา rear camera ก่อน
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: "environment" }
+            },
+            audio: false
+          });
+
+          const track = stream.getVideoTracks()[0];
+          const settings = track.getSettings();
+          const deviceId = settings.deviceId;
+
+          // ปล่อย stream ชั่วคราวก่อนให้ html5-qrcode เปิด stream จริง
+          stream.getTracks().forEach(t => t.stop());
+
+          if (deviceId) {
+            await html5QrCode.start(
+              { deviceId: { exact: deviceId } },
+              scanConfig,
+              onScanSuccess,
+              onScanFailure
+            );
+          } else {
+            // fallback สำหรับ Safari/iOS บางรุ่น
+            await html5QrCode.start(
+              { facingMode: { ideal: "environment" } },
+              scanConfig,
+              onScanSuccess,
+              onScanFailure
+            );
+          }
+        } else {
+          // Desktop / webcam
+          await html5QrCode.start(
+            { facingMode: { ideal: "environment" } },
+            scanConfig,
+            onScanSuccess,
+            onScanFailure
+          );
+        }
+
+        isScanning = true;
+        console.log("[Scanner] Camera started");
+
+        // ตรวจ capability ของไฟฉายหลังกล้องเริ่มทำงาน
+        setTimeout(() => {
+          try {
+            const capabilities =
+              html5QrCode.getRunningTrackCapabilities?.() || {};
+
+            console.log("[Scanner] Camera capabilities:", capabilities);
+
+            if (capabilities.torch || capabilities.torchFeature) {
+              document.getElementById('btnTorch').style.display = 'flex';
+            }
+          } catch (e) {
+            console.log("[Scanner] Cannot read camera capabilities:", e);
+          }
+        }, 1000);
+
+      } catch (err) {
+        console.error("[Scanner] Camera start error:", err);
+
+        isScanning = false;
+        document.getElementById('btnStart').style.display = 'block';
+        document.getElementById('scanBox').style.display = 'none';
+
+        let message = "ไม่สามารถเปิดกล้องได้";
+
+        if (err && err.name === "NotAllowedError") {
+          message = "ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตการใช้กล้องใน Safari";
+        } else if (err && err.name === "NotFoundError") {
+          message = "ไม่พบกล้องในอุปกรณ์";
+        } else if (err && err.name === "NotReadableError") {
+          message = "กล้องกำลังถูกใช้งานโดยแอปหรือหน้าเว็บอื่น";
+        } else if (err && err.message) {
+          message += ": " + err.message;
+        }
+
+        alert(message);
+      }
+    }
+
+    // สำคัญ: อย่าทิ้ง error จาก html5-qrcode
+    // จะช่วย debug กรณี iPad เห็นกล้องแต่ไม่อ่าน Barcode
+    function onScanFailure(errorMessage) {
+      // html5-qrcode จะเรียก callback นี้บ่อยมากเมื่อยังหา Barcode ไม่เจอ
+      // จึงไม่แสดง popup ทุกครั้ง
+      if (errorMessage) {
+        console.debug("[Scanner] No barcode yet:", errorMessage);
+      }
+    }
+
+    // ระบบเปิด/ปิดไฟฉาย
+    async function toggleTorch() {
+      if (!isScanning || !html5QrCode) return;
+
+      try {
+        isTorchOn = !isTorchOn;
+
+        await html5QrCode.applyVideoConstraints({
+          advanced: [{ torch: isTorchOn }]
+        });
+
+        const btn = document.getElementById('btnTorch');
+
+        if (isTorchOn) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      } catch (error) {
+        console.error("[Scanner] Torch error:", error);
+        alert("อุปกรณ์นี้ไม่รองรับการเปิดไฟฉายผ่านเบราว์เซอร์");
+        isTorchOn = false;
+        document.getElementById('btnTorch').classList.remove('active');
+      }
+    }
+
+  </script>
+</body>
+</html>
