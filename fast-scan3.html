@@ -35,13 +35,43 @@
     /* ปุ่มไฟฉาย (Floating Button) */
     .btn-torch { position: absolute; top: 20px; right: 20px; z-index: 15; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.2); backdrop-filter: blur(5px); color: white; border: 2px solid rgba(255,255,255,0.5); font-size: 1.2rem; display: none; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: 0.3s; }
     .btn-torch.active { background: #f59e0b; border-color: #f59e0b; color: #fff; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.5); }
+    /* ปุ่มปิดหน้าต่าง (Close Button) */
+    .btn-close-window { 
+      position: absolute; 
+      top: 50%; 
+      right: 15px; 
+      transform: translateY(-50%); 
+      background: #fee2e2; 
+      color: #dc2626; 
+      border: none; 
+      width: 40px; 
+      height: 40px; 
+      border-radius: 50%; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      font-size: 1.2rem; 
+      cursor: pointer; 
+      transition: all 0.2s; 
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .btn-close-window:hover { 
+      background: #ef4444; 
+      color: white; 
+      box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
+    }
   </style>
 </head>
 <body>
 
   <div class="header">
     <h4 class="mb-0 fw-bold text-success"><i class="fa-solid fa-bolt me-2 text-warning"></i>สแกนด่วนต่อเนื่อง</h4>
-    <div class="small text-muted fw-bold mt-1">โหมด Fast Track บันทึกอัตโนมัติ (ห้ามปิดหน้าต่างนี้)</div>
+    <div class="small text-muted fw-bold mt-1">โหมด Fast Track บันทึกอัตโนมัติ</div>
+    
+    <!-- ปุ่มปิดหน้าต่าง -->
+    <button class="btn-close-window" onclick="closeScannerWindow()" title="ปิดสแกนเนอร์">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
   </div>
 
   <div class="camera-container">
@@ -453,7 +483,23 @@
         document.getElementById('btnTorch').classList.remove('active');
       }
     }
-
+    // ระบบปิดหน้าต่าง (คืนทรัพยากรกล้องให้เครื่องก่อนปิด)
+    function closeScannerWindow() {
+      if (html5QrCode && isScanning) {
+        // เปลี่ยนปุ่มเป็นสถานะกำลังโหลด
+        const btnClose = document.querySelector('.btn-close-window');
+        if(btnClose) btnClose.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        
+        html5QrCode.stop().then(() => {
+          window.close(); // ปิดกล้องสำเร็จ ค่อยปิดหน้าต่าง
+        }).catch((err) => {
+          console.error("Error stopping camera:", err);
+          window.close(); // ถึงจะหยุดกล้องพัง ก็บังคับปิดหน้าต่างอยู่ดี
+        });
+      } else {
+        window.close(); // ถ้ากล้องไม่ได้เปิดอยู่ ปิดหน้าต่างได้เลย
+      }
+    }
   </script>
 </body>
 </html>
