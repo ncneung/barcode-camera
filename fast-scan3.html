@@ -69,6 +69,8 @@
     // หาก Barcode ของคุณมี 10 หลัก ให้เปลี่ยนเป็น 10 เป็นต้น
     const EXPECTED_LENGTH = 10;
     const CONFIRM_READS_REQUIRED = 2;
+    const CONFIRM_WINDOW_MS = 900;
+    let firstCandidateTime = 0;
     let candidateBarcode = "";
     let candidateReads = 0;
 
@@ -121,6 +123,7 @@
     function resetBarcodeCandidate() {
       candidateBarcode = "";
       candidateReads = 0;
+      firstCandidateTime = 0;
     }
 
     // 2. เมื่อกล้องอ่าน Barcode ได้
@@ -136,12 +139,16 @@
         return;
       }
 
-      // ยืนยันว่ากล้องอ่าน Barcode เดิมซ้ำติดต่อกัน
-      if (cleanId === candidateBarcode) {
+      // ยืนยันว่าเป็น Barcode เดิมซ้ำภายในช่วงเวลาสั้น ๆ
+      const now = Date.now();
+
+      if (cleanId === candidateBarcode && firstCandidateTime > 0 &&
+          (now - firstCandidateTime) <= CONFIRM_WINDOW_MS) {
         candidateReads++;
       } else {
         candidateBarcode = cleanId;
         candidateReads = 1;
+        firstCandidateTime = now;
       }
 
       console.log(
@@ -310,7 +317,7 @@
 
         // ใช้ 4:3 ซึ่งเหมาะกับกล้องมือถือ/iPad มากกว่า 16:9
         const scanConfig = {
-          fps: 10,
+          fps: 8,
           qrbox: function(viewfinderWidth, viewfinderHeight) {
             // กล่องอ่าน Barcode ให้กว้าง แต่ไม่เกินพื้นที่กล้อง
             const width = Math.min(
