@@ -315,7 +315,7 @@
       );
     }
 
-    // 3. ระบบเปิดกล้อง (Optimized for iOS & Android - บังคับกล้องหลัง)
+    // 3. ระบบเปิดกล้อง (ดึงรายการกล้องทั้งหมดเพื่อบังคับเลือกกล้องหลัง)
     async function startCamera() {
       if (isScanning) return;
 
@@ -341,7 +341,7 @@
         });
 
         const scanConfig = {
-          fps: 15, 
+          fps: 15,
           qrbox: function(viewfinderWidth, viewfinderHeight) {
             const width = Math.min(Math.floor(viewfinderWidth * 0.85), 500);
             const height = Math.min(Math.max(Math.floor(width * 0.32), 100), 180);
@@ -354,30 +354,41 @@
           }
         };
 
-        // 🔴 [แก้ไขจุดนี้] ใช้คำสั่งบังคับกล้องหลังแบบเด็ดขาด (exact)
-        try {
-          // แผน A: บังคับใช้กล้องหลังเท่านั้น (สำหรับมือถือ/แท็บเล็ต)
-          await html5QrCode.start(
-            { facingMode: { exact: "environment" } }, 
-            scanConfig,
-            onScanSuccess,
-            onScanFailure
-          );
-        } catch (cameraError) {
-          // แผน B: ถ้าเครื่องไม่มีกล้องหลัง (เช่น โน้ตบุ๊ก) หรือเบราว์เซอร์ไม่รองรับคำสั่ง exact
-          // ให้ถอยกลับมาใช้คำสั่งแบบอะลุ่มอล่วย (ideal) แทน
-          console.warn("[Scanner] Exact environment camera failed, falling back to ideal.", cameraError);
-          await html5QrCode.start(
-            { facingMode: { ideal: "environment" } }, 
-            scanConfig,
-            onScanSuccess,
-            onScanFailure
-          );
+        // 🔴 [วิธีแก้ปัญหาขั้นเด็ดขาด] กางรายชื่อกล้องทุกตัวออกมา
+        const devices = await Html5Qrcode.getCameras();
+        
+        if (!devices || devices.length === 0) {
+          throw new Error("ไม่พบกล้องในอุปกรณ์");
         }
 
-        isScanning = true;
-        console.log("[Scanner] Camera started successfully");
+        let targetCameraId = devices[0].id; // ตั้งค่าเริ่มต้น
 
+        if (devices.length > 1) {
+          // 🔴 สแกนหาชื่อกล้องที่มีคำว่า back, rear, หรือ environment
+          const backCamera = devices.find(device => 
+            /back|rear|environment|หลัง/i.test(device.label)
+          );
+          
+          if (backCamera) {
+            targetCameraId = backCamera.id;
+          } else {
+            // ถ้าชื่อกล้องถูกเบราว์เซอร์ซ่อนไว้ กล้องหลังมักจะอยู่ลำดับสุดท้ายเสมอ (สำหรับมือถือ)
+            targetCameraId = devices[devices.length - 1].id;
+          }
+        }
+
+        // 🔴 สั่งรันกล้องโดยใช้รหัส ID กล้องหลังที่หามาได้แบบเจาะจง
+        await html5QrCode.start(
+          targetCameraId,
+          scanConfig,
+          onScanSuccess,
+          onScanFailure
+        );
+
+        isScanning = true;
+        console.log("[Scanner] Camera started using ID:", targetCameraId);
+
+        // ตรวจสอบว่ากล้องหลังมีไฟฉายให้ใช้งานหรือไม่
         setTimeout(() => {
           try {
             const capabilities = html5QrCode.getRunningTrackCapabilities?.() || {};
@@ -396,7 +407,7 @@
 
         let message = "ไม่สามารถเปิดกล้องได้";
         if (err && err.name === "NotAllowedError") {
-          message = "ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตการใช้กล้องใน Safari/Chrome";
+          message = "ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตการเข้าถึงในตั้งค่าเบราว์เซอร์";
         } else if (err && err.name === "NotFoundError") {
           message = "ไม่พบกล้องในอุปกรณ์";
         } else if (err && err.name === "NotReadableError") {
