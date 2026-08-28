@@ -315,7 +315,7 @@
       );
     }
 
-    // 3. ระบบเปิดกล้อง
+    // 3. ระบบเปิดกล้อง (Optimized for iOS & Android)
     async function startCamera() {
       if (isScanning) return;
 
@@ -328,16 +328,11 @@
       document.getElementById('scanBox').style.display = 'block';
 
       try {
-        // Barcode 1D: ใช้เฉพาะ format ที่ระบบต้องการ
+        // 🔴 [ปรับปรุงที่ 1] ลด Format ลงเหลือแค่ที่ใช้งานจริง (แนะนำ CODE_128 หรือ CODE_39)
+        // ถ้าไม่แน่ใจให้ใส่ไว้เท่านี้ก่อน จะช่วยให้กล้องตัดสินใจได้เร็วขึ้น 50%
         const formats = [
           Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.CODE_93,
-          Html5QrcodeSupportedFormats.CODABAR,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.ITF,
-          Html5QrcodeSupportedFormats.UPC_A
+          Html5QrcodeSupportedFormats.CODE_39
         ];
 
         html5QrCode = new Html5Qrcode("reader", {
@@ -345,84 +340,40 @@
           formatsToSupport: formats
         });
 
-        // ใช้ 4:3 ซึ่งเหมาะกับกล้องมือถือ/iPad มากกว่า 16:9
         const scanConfig = {
-          fps: 8,
+          fps: 15, // 🔴 [ปรับปรุงที่ 2] เพิ่มเป็น 15 FPS เพื่อจับภาพเวลาสตาฟฟ์ขยับมือเร็วๆ
           qrbox: function(viewfinderWidth, viewfinderHeight) {
-            // กล่องอ่าน Barcode ให้กว้าง แต่ไม่เกินพื้นที่กล้อง
-            const width = Math.min(
-              Math.floor(viewfinderWidth * 0.85),
-              500
-            );
-            const height = Math.min(
-              Math.max(Math.floor(width * 0.32), 100),
-              180
-            );
+            const width = Math.min(Math.floor(viewfinderWidth * 0.85), 500);
+            const height = Math.min(Math.max(Math.floor(width * 0.32), 100), 180);
             return { width, height };
           },
           aspectRatio: 4 / 3,
-          disableFlip: true
+          disableFlip: true,
+          // 🔴 [ปรับปรุงที่ 3] บังคับการใช้ Auto Focus แบบต่อเนื่อง (ถ้าเบราว์เซอร์รองรับ)
+          videoConstraints: {
+            focusMode: "continuous"
+          }
         };
 
-        if (isMobileOrTablet()) {
-          // ขอ permission และหา rear camera ก่อน
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: { ideal: "environment" }
-            },
-            audio: false
-          });
-
-          const track = stream.getVideoTracks()[0];
-          const settings = track.getSettings();
-          const deviceId = settings.deviceId;
-
-          // ปล่อย stream ชั่วคราวก่อนให้ html5-qrcode เปิด stream จริง
-          stream.getTracks().forEach(t => t.stop());
-
-          if (deviceId) {
-            await html5QrCode.start(
-              { deviceId: { exact: deviceId } },
-              scanConfig,
-              onScanSuccess,
-              onScanFailure
-            );
-          } else {
-            // fallback สำหรับ Safari/iOS บางรุ่น
-            await html5QrCode.start(
-              { facingMode: { ideal: "environment" } },
-              scanConfig,
-              onScanSuccess,
-              onScanFailure
-            );
-          }
-        } else {
-          // Desktop / webcam
-          await html5QrCode.start(
-            { facingMode: { ideal: "environment" } },
-            scanConfig,
-            onScanSuccess,
-            onScanFailure
-          );
-        }
+        // 🔴 [ปรับปรุงที่ 4] เลิกดึง Device ID แบบ Manual ปล่อยให้ Library ใช้คำสั่ง Native ของเบราว์เซอร์
+        // Safari จะฉลาดพอที่จะเลือกกล้องหลังตัวหลักที่มี Auto Focus ให้เอง
+        await html5QrCode.start(
+          { facingMode: "environment" }, 
+          scanConfig,
+          onScanSuccess,
+          onScanFailure
+        );
 
         isScanning = true;
-        console.log("[Scanner] Camera started");
+        console.log("[Scanner] Camera started successfully");
 
-        // ตรวจ capability ของไฟฉายหลังกล้องเริ่มทำงาน
         setTimeout(() => {
           try {
-            const capabilities =
-              html5QrCode.getRunningTrackCapabilities?.() || {};
-
-            console.log("[Scanner] Camera capabilities:", capabilities);
-
+            const capabilities = html5QrCode.getRunningTrackCapabilities?.() || {};
             if (capabilities.torch || capabilities.torchFeature) {
               document.getElementById('btnTorch').style.display = 'flex';
             }
-          } catch (e) {
-            console.log("[Scanner] Cannot read camera capabilities:", e);
-          }
+          } catch (e) {}
         }, 1000);
 
       } catch (err) {
@@ -433,7 +384,6 @@
         document.getElementById('scanBox').style.display = 'none';
 
         let message = "ไม่สามารถเปิดกล้องได้";
-
         if (err && err.name === "NotAllowedError") {
           message = "ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตการใช้กล้องใน Safari";
         } else if (err && err.name === "NotFoundError") {
