@@ -315,6 +315,22 @@
       );
     }
 
+    // ==========================================
+// ตรวจว่าเป็น iOS / iPadOS
+// ==========================================
+function isIOS() {
+  const ua = navigator.userAgent || "";
+
+  return (
+    /iPhone|iPad|iPod/i.test(ua) ||
+    (
+      /Macintosh/i.test(ua) &&
+      navigator.maxTouchPoints &&
+      navigator.maxTouchPoints > 1
+    )
+  );
+}
+
     // 3. ระบบเปิดกล้อง
     async function startCamera() {
       if (isScanning) return;
