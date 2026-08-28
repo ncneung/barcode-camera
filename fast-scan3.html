@@ -315,7 +315,7 @@
       );
     }
 
-    // 3. ระบบเปิดกล้อง (Optimized for iOS & Android)
+    // 3. ระบบเปิดกล้อง (Optimized for iOS & Android - บังคับกล้องหลัง)
     async function startCamera() {
       if (isScanning) return;
 
@@ -328,11 +328,11 @@
       document.getElementById('scanBox').style.display = 'block';
 
       try {
-        // 🔴 [ปรับปรุงที่ 1] ลด Format ลงเหลือแค่ที่ใช้งานจริง (แนะนำ CODE_128 หรือ CODE_39)
-        // ถ้าไม่แน่ใจให้ใส่ไว้เท่านี้ก่อน จะช่วยให้กล้องตัดสินใจได้เร็วขึ้น 50%
         const formats = [
           Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.CODABAR
         ];
 
         html5QrCode = new Html5Qrcode("reader", {
@@ -341,7 +341,7 @@
         });
 
         const scanConfig = {
-          fps: 15, // 🔴 [ปรับปรุงที่ 2] เพิ่มเป็น 15 FPS เพื่อจับภาพเวลาสตาฟฟ์ขยับมือเร็วๆ
+          fps: 15, 
           qrbox: function(viewfinderWidth, viewfinderHeight) {
             const width = Math.min(Math.floor(viewfinderWidth * 0.85), 500);
             const height = Math.min(Math.max(Math.floor(width * 0.32), 100), 180);
@@ -349,20 +349,31 @@
           },
           aspectRatio: 4 / 3,
           disableFlip: true,
-          // 🔴 [ปรับปรุงที่ 3] บังคับการใช้ Auto Focus แบบต่อเนื่อง (ถ้าเบราว์เซอร์รองรับ)
           videoConstraints: {
             focusMode: "continuous"
           }
         };
 
-        // 🔴 [ปรับปรุงที่ 4] เลิกดึง Device ID แบบ Manual ปล่อยให้ Library ใช้คำสั่ง Native ของเบราว์เซอร์
-        // Safari จะฉลาดพอที่จะเลือกกล้องหลังตัวหลักที่มี Auto Focus ให้เอง
-        await html5QrCode.start(
-          { facingMode: "environment" }, 
-          scanConfig,
-          onScanSuccess,
-          onScanFailure
-        );
+        // 🔴 [แก้ไขจุดนี้] ใช้คำสั่งบังคับกล้องหลังแบบเด็ดขาด (exact)
+        try {
+          // แผน A: บังคับใช้กล้องหลังเท่านั้น (สำหรับมือถือ/แท็บเล็ต)
+          await html5QrCode.start(
+            { facingMode: { exact: "environment" } }, 
+            scanConfig,
+            onScanSuccess,
+            onScanFailure
+          );
+        } catch (cameraError) {
+          // แผน B: ถ้าเครื่องไม่มีกล้องหลัง (เช่น โน้ตบุ๊ก) หรือเบราว์เซอร์ไม่รองรับคำสั่ง exact
+          // ให้ถอยกลับมาใช้คำสั่งแบบอะลุ่มอล่วย (ideal) แทน
+          console.warn("[Scanner] Exact environment camera failed, falling back to ideal.", cameraError);
+          await html5QrCode.start(
+            { facingMode: { ideal: "environment" } }, 
+            scanConfig,
+            onScanSuccess,
+            onScanFailure
+          );
+        }
 
         isScanning = true;
         console.log("[Scanner] Camera started successfully");
@@ -385,7 +396,7 @@
 
         let message = "ไม่สามารถเปิดกล้องได้";
         if (err && err.name === "NotAllowedError") {
-          message = "ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตการใช้กล้องใน Safari";
+          message = "ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตการใช้กล้องใน Safari/Chrome";
         } else if (err && err.name === "NotFoundError") {
           message = "ไม่พบกล้องในอุปกรณ์";
         } else if (err && err.name === "NotReadableError") {
