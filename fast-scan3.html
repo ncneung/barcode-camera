@@ -315,31 +315,6 @@
       );
     }
 
-    // ==========================================
-    // ตรวจว่าเป็น iOS / iPadOS
-    // ==========================================
-    function isIOS() {
-      const ua = navigator.userAgent || "";
-
-      return (
-        /iPhone|iPad|iPod/i.test(ua) ||
-        (
-          /Macintosh/i.test(ua) &&
-          navigator.maxTouchPoints &&
-          navigator.maxTouchPoints > 1
-        )
-      );
-    }
-
-    // ==========================================
-    // ตรวจว่าเป็น Android
-    // ==========================================
-    function isAndroid() {
-      return /Android/i.test(
-        navigator.userAgent || ""
-      );
-    }
-
     // 3. ระบบเปิดกล้อง
     async function startCamera() {
       if (isScanning) return;
@@ -353,7 +328,7 @@
       document.getElementById('scanBox').style.display = 'block';
 
       try {
-        // Barcode 1D: จำกัดเฉพาะ format ที่ระบบใช้งาน
+        // Barcode 1D: ใช้เฉพาะ format ที่ระบบต้องการ
         const formats = [
           Html5QrcodeSupportedFormats.CODE_128,
           Html5QrcodeSupportedFormats.CODE_39,
@@ -370,358 +345,144 @@
           formatsToSupport: formats
         });
 
-        // ปรับสำหรับ Barcode 1D โดยเฉพาะ
+        // ใช้ 4:3 ซึ่งเหมาะกับกล้องมือถือ/iPad มากกว่า 16:9
         const scanConfig = {
-          fps: 12,
-
+          fps: 8,
           qrbox: function(viewfinderWidth, viewfinderHeight) {
+            // กล่องอ่าน Barcode ให้กว้าง แต่ไม่เกินพื้นที่กล้อง
             const width = Math.min(
-              Math.floor(viewfinderWidth * 0.90),
-              600
+              Math.floor(viewfinderWidth * 0.85),
+              500
             );
-
             const height = Math.min(
-              Math.max(Math.floor(width * 0.35), 120),
-              200
+              Math.max(Math.floor(width * 0.32), 100),
+              180
             );
-
-            return {
-              width: width,
-              height: height
-            };
+            return { width, height };
           },
-
           aspectRatio: 4 / 3,
           disableFlip: true
         };
 
-        // =====================================================
-        // iPhone / iPad
-        // ใช้วิธีที่ไฟล์เดิมของคุณเคยใช้งานได้:
-        // ขอ permission + หา deviceId ก่อน แล้วให้
-        // html5-qrcode เปิดกล้องหลังด้วย deviceId
-        // =====================================================
-        if (isIOS()) {
-
-          console.log("[Scanner] iOS mode");
-
-          let deviceId = null;
-
-          try {
-            const stream =
-              await navigator.mediaDevices.getUserMedia({
-                video: {
-                  facingMode: {
-                    ideal: "environment"
-                  }
-                },
-                audio: false
-              });
-
-            const tracks =
-              stream.getVideoTracks();
-
-            if (tracks.length > 0) {
-
-              const settings =
-                tracks[0].getSettings();
-
-              deviceId =
-                settings.deviceId || null;
-
-            }
-
-            stream
-              .getTracks()
-              .forEach(track => track.stop());
-
-          } catch (e) {
-
-            console.warn(
-              "[Scanner] iOS camera permission/device detection:",
-              e
-            );
-
-            throw e;
-          }
-
-          if (deviceId) {
-
-            await html5QrCode.start(
-              {
-                deviceId: {
-                  exact: deviceId
-                }
-              },
-              scanConfig,
-              onScanSuccess,
-              onScanFailure
-            );
-
-          } else {
-
-            // fallback สำหรับ iOS บางรุ่น
-            await html5QrCode.start(
-              {
-                facingMode: {
-                  ideal: "environment"
-                }
-              },
-              scanConfig,
-              onScanSuccess,
-              onScanFailure
-            );
-
-          }
-
-        // =====================================================
-        // Android
-        // ใช้วิธีเดิมที่ผ่านการทดสอบแล้ว
-        // =====================================================
-        } else if (isAndroid()) {
-
-          console.log("[Scanner] Android mode");
-
-          let deviceId = null;
-
-          try {
-
-            const stream =
-              await navigator.mediaDevices.getUserMedia({
-                video: {
-                  facingMode: {
-                    ideal: "environment"
-                  }
-                },
-                audio: false
-              });
-
-            const track =
-              stream.getVideoTracks()[0];
-
-            if (track) {
-
-              const settings =
-                track.getSettings();
-
-              deviceId =
-                settings.deviceId || null;
-
-            }
-
-            stream
-              .getTracks()
-              .forEach(track =>
-                track.stop()
-              );
-
-          } catch (e) {
-
-            console.warn(
-              "[Scanner] Android camera detection fallback:",
-              e
-            );
-
-          }
-
-          if (deviceId) {
-
-            await html5QrCode.start(
-              {
-                deviceId: {
-                  exact: deviceId
-                }
-              },
-              scanConfig,
-              onScanSuccess,
-              onScanFailure
-            );
-
-          } else {
-
-            await html5QrCode.start(
-              {
-                facingMode: {
-                  ideal: "environment"
-                }
-              },
-              scanConfig,
-              onScanSuccess,
-              onScanFailure
-            );
-
-          }
-
-        // =====================================================
-        // Desktop / Laptop
-        // =====================================================
-        } else {
-
-          console.log("[Scanner] Desktop mode");
-
-          await html5QrCode.start(
-            {
-              facingMode: {
-                ideal: "environment"
-              }
+        if (isMobileOrTablet()) {
+          // ขอ permission และหา rear camera ก่อน
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: "environment" }
             },
+            audio: false
+          });
+
+          const track = stream.getVideoTracks()[0];
+          const settings = track.getSettings();
+          const deviceId = settings.deviceId;
+
+          // ปล่อย stream ชั่วคราวก่อนให้ html5-qrcode เปิด stream จริง
+          stream.getTracks().forEach(t => t.stop());
+
+          if (deviceId) {
+            await html5QrCode.start(
+              { deviceId: { exact: deviceId } },
+              scanConfig,
+              onScanSuccess,
+              onScanFailure
+            );
+          } else {
+            // fallback สำหรับ Safari/iOS บางรุ่น
+            await html5QrCode.start(
+              { facingMode: { ideal: "environment" } },
+              scanConfig,
+              onScanSuccess,
+              onScanFailure
+            );
+          }
+        } else {
+          // Desktop / webcam
+          await html5QrCode.start(
+            { facingMode: { ideal: "environment" } },
             scanConfig,
             onScanSuccess,
             onScanFailure
           );
-
         }
 
         isScanning = true;
+        console.log("[Scanner] Camera started");
 
-        console.log(
-          "[Scanner] Camera started successfully"
-        );
-
-        // =====================================================
-        // พยายามใช้ Continuous Autofocus
-        // ถ้าอุปกรณ์ไม่รองรับ จะไม่ทำให้การเปิดกล้องล้มเหลว
-        // =====================================================
-        setTimeout(async () => {
-
-          if (!html5QrCode || !isScanning) return;
-
-          try {
-
-            await html5QrCode.applyVideoConstraints({
-              advanced: [
-                {
-                  focusMode: "continuous"
-                }
-              ]
-            });
-
-            console.log(
-              "[Scanner] Continuous autofocus enabled"
-            );
-
-          } catch (e) {
-
-            console.log(
-              "[Scanner] Continuous autofocus not supported:",
-              e
-            );
-
-          }
-
-        }, 500);
-
-        // =====================================================
-        // ตรวจสอบ Torch
-        // =====================================================
+        // ตรวจ capability ของไฟฉายหลังกล้องเริ่มทำงาน
         setTimeout(() => {
-
           try {
-
             const capabilities =
               html5QrCode.getRunningTrackCapabilities?.() || {};
 
-            console.log(
-              "[Scanner] Camera capabilities:",
-              capabilities
-            );
+            console.log("[Scanner] Camera capabilities:", capabilities);
 
-            if (
-              capabilities.torch ||
-              capabilities.torchFeature
-            ) {
-
-              document
-                .getElementById('btnTorch')
-                .style.display = 'flex';
-
+            if (capabilities.torch || capabilities.torchFeature) {
+              document.getElementById('btnTorch').style.display = 'flex';
             }
-
           } catch (e) {
-
-            console.log(
-              "[Scanner] Cannot read camera capabilities:",
-              e
-            );
-
+            console.log("[Scanner] Cannot read camera capabilities:", e);
           }
-
         }, 1000);
 
       } catch (err) {
-
-        console.error(
-          "[Scanner] Camera start error:",
-          err
-        );
+        console.error("[Scanner] Camera start error:", err);
 
         isScanning = false;
+        document.getElementById('btnStart').style.display = 'block';
+        document.getElementById('scanBox').style.display = 'none';
 
-        document.getElementById(
-          'btnStart'
-        ).style.display = 'block';
+        let message = "ไม่สามารถเปิดกล้องได้";
 
-        document.getElementById(
-          'scanBox'
-        ).style.display = 'none';
-
-        let message =
-          "ไม่สามารถเปิดกล้องได้";
-
-        if (
-          err &&
-          err.name === "NotAllowedError"
-        ) {
-
-          message =
-            "ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตการใช้กล้อง";
-
-        } else if (
-          err &&
-          err.name === "NotFoundError"
-        ) {
-
-          message =
-            "ไม่พบกล้องในอุปกรณ์";
-
-        } else if (
-          err &&
-          err.name === "NotReadableError"
-        ) {
-
-          message =
-            "กล้องกำลังถูกใช้งานโดยแอปหรือหน้าเว็บอื่น";
-
-        } else if (
-          err &&
-          err.message
-        ) {
-
-          message +=
-            ": " +
-            err.message;
-
+        if (err && err.name === "NotAllowedError") {
+          message = "ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตการใช้กล้องใน Safari";
+        } else if (err && err.name === "NotFoundError") {
+          message = "ไม่พบกล้องในอุปกรณ์";
+        } else if (err && err.name === "NotReadableError") {
+          message = "กล้องกำลังถูกใช้งานโดยแอปหรือหน้าเว็บอื่น";
+        } else if (err && err.message) {
+          message += ": " + err.message;
         }
 
         alert(message);
       }
     }
 
-    // =========================================================
-    // Scanner failure callback
-    // =========================================================
+    // สำคัญ: อย่าทิ้ง error จาก html5-qrcode
+    // จะช่วย debug กรณี iPad เห็นกล้องแต่ไม่อ่าน Barcode
     function onScanFailure(errorMessage) {
-
+      // html5-qrcode จะเรียก callback นี้บ่อยมากเมื่อยังหา Barcode ไม่เจอ
+      // จึงไม่แสดง popup ทุกครั้ง
       if (errorMessage) {
-
-        console.debug(
-          "[Scanner] No barcode yet:",
-          errorMessage
-        );
-
+        console.debug("[Scanner] No barcode yet:", errorMessage);
       }
     }
 
+    // ระบบเปิด/ปิดไฟฉาย
+    async function toggleTorch() {
+      if (!isScanning || !html5QrCode) return;
+
+      try {
+        isTorchOn = !isTorchOn;
+
+        await html5QrCode.applyVideoConstraints({
+          advanced: [{ torch: isTorchOn }]
+        });
+
+        const btn = document.getElementById('btnTorch');
+
+        if (isTorchOn) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      } catch (error) {
+        console.error("[Scanner] Torch error:", error);
+        alert("อุปกรณ์นี้ไม่รองรับการเปิดไฟฉายผ่านเบราว์เซอร์");
+        isTorchOn = false;
+        document.getElementById('btnTorch').classList.remove('active');
+      }
+    }
     // ระบบปิดหน้าต่าง (คืนทรัพยากรกล้องให้เครื่องก่อนปิด)
     function closeScannerWindow() {
       if (html5QrCode && isScanning) {
