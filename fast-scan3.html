@@ -342,13 +342,13 @@
 
         const scanConfig = {
           fps: 15,
-          qrbox: function(viewfinderWidth, viewfinderHeight) {
-            const width = Math.min(Math.floor(viewfinderWidth * 0.85), 500);
-            const height = Math.min(Math.max(Math.floor(width * 0.32), 100), 180);
-            return { width, height };
-          },
+          // 🔴 [แก้ปัญหา 1] ลบคำสั่ง qrbox ออก! เพื่อให้ระบบสแกนกวาดหาบาร์โค้ดจาก "ทั้งหน้าจอ"
+          // ไม่ว่าบาร์โค้ดจะอยู่มุมไหน หรือเล็กแค่ไหน ขอแค่ภาพชัดก็สแกนติดทันที
           aspectRatio: 4 / 3,
-          disableFlip: true
+          disableFlip: true,
+          // 🔴 [แก้ปัญหา 2] บังคับเปิดใช้สมองกลสแกนระดับฮาร์ดแวร์ของ iOS (Native BarcodeDetector)
+          // ถ้า iOS เครื่องนั้นรองรับ มันจะเปลี่ยนไปใช้ระบบเดียวกับแอปกล้องของ Apple ซึ่งไวมากๆ ครับ
+          useBarCodeDetectorIfSupported: true
         };
 
         // 🔴 1. ท่าไม้ตาย: ขอสิทธิ์กล้องก่อน เพื่อปลดล็อกการซ่อนชื่อกล้องของ iOS
