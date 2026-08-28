@@ -315,7 +315,7 @@
       );
     }
 
-    // 3. ระบบเปิดกล้อง (แก้ปัญหากล้องหน้า & โฟกัส iOS)
+    // 3. ระบบเปิดกล้อง (ถอด DNA จากไฟล์ index_สแกนปกติ.html)
     async function startCamera() {
       if (isScanning) return;
 
@@ -328,78 +328,88 @@
       document.getElementById('scanBox').style.display = 'block';
 
       try {
+        // ใช้ Format เดียวกับไฟล์สแกนปกติ
         const formats = [
           Html5QrcodeSupportedFormats.CODE_128,
           Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.CODE_93,
+          Html5QrcodeSupportedFormats.CODABAR,
           Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.CODABAR
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E
         ];
 
+        // 🔴 ปิดการใช้ Native Detector ของ iOS เพื่อใช้สมองกลที่อ่านง่ายกว่า
         html5QrCode = new Html5Qrcode("reader", {
           verbose: false,
-          formatsToSupport: formats
+          formatsToSupport: formats,
+          useBarCodeDetectorIfSupported: false 
         });
 
-        const scanConfig = {
-          fps: 15,
-          // 🔴 [แก้ปัญหา 1] ลบคำสั่ง qrbox ออก! เพื่อให้ระบบสแกนกวาดหาบาร์โค้ดจาก "ทั้งหน้าจอ"
-          // ไม่ว่าบาร์โค้ดจะอยู่มุมไหน หรือเล็กแค่ไหน ขอแค่ภาพชัดก็สแกนติดทันที
-          aspectRatio: 4 / 3,
-          disableFlip: true,
-          // 🔴 [แก้ปัญหา 2] บังคับเปิดใช้สมองกลสแกนระดับฮาร์ดแวร์ของ iOS (Native BarcodeDetector)
-          // ถ้า iOS เครื่องนั้นรองรับ มันจะเปลี่ยนไปใช้ระบบเดียวกับแอปกล้องของ Apple ซึ่งไวมากๆ ครับ
-          useBarCodeDetectorIfSupported: true
-        };
+        const isDesktop = !isMobileOrTablet();
+        let targetDeviceId = null;
 
-        // 🔴 1. ท่าไม้ตาย: ขอสิทธิ์กล้องก่อน เพื่อปลดล็อกการซ่อนชื่อกล้องของ iOS
-        let tempStream;
-        try {
-          tempStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        } catch (e) {
-          tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        }
-        // หยุดกล้องชั่วคราวทันทีที่ได้สิทธิ์
-        tempStream.getTracks().forEach(track => track.stop());
-
-        // 🔴 2. ดึงรายการกล้องทั้งหมด (คราวนี้ชื่อกล้องจะมาครบแล้ว)
-        const devices = await Html5Qrcode.getCameras();
-        if (!devices || devices.length === 0) {
-          throw new Error("ไม่พบกล้องในอุปกรณ์");
-        }
-
-        let targetCameraId = devices[0].id; // ตั้งค่าเริ่มต้น
-
-        if (devices.length > 1) {
-          // 🔴 3. หากล้องหลังทั้งหมด
-          const backCameras = devices.filter(device => 
-            /back|rear|environment|หลัง/i.test(device.label)
-          );
-
-          if (backCameras.length > 0) {
-            // 🔴 4. [แก้ปัญหา iOS สแกนยาก] กรองเลนส์ Ultra Wide และ Telephoto ทิ้ง!
-            // เพื่อบังคับให้ใช้ "เลนส์หลัก (Main Camera)" ที่มีระบบโฟกัสระยะใกล้ (Auto Focus)
-            const mainBackCamera = backCameras.find(device => 
-              !/ultra|wide|tele|depth|infrared/i.test(device.label)
-            );
-            
-            targetCameraId = mainBackCamera ? mainBackCamera.id : backCameras[0].id;
-          } else {
-            // แผนสำรอง: ถ้าไม่มีชื่อจริงๆ กล้องหลังมักจะอยู่ลำดับสุดท้าย
-            targetCameraId = devices[devices.length - 1].id;
+        // 🔴 ลอจิกการขอดึงกล้องหลังที่แม่นยำที่สุด (จากไฟล์สแกนปกติ)
+        if (!isDesktop) {
+          try {
+            const rearStream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: { exact: "environment" } },
+              audio: false
+            });
+            const rearTrack = rearStream.getVideoTracks()[0];
+            targetDeviceId = rearTrack?.getSettings?.().deviceId || null;
+            rearStream.getTracks().forEach(track => track.stop());
+          } catch (e) {
+            // Fallback
+            const devices = await Html5Qrcode.getCameras();
+            const rearCamera = devices.find(camera => {
+              const label = String(camera.label || "").toLowerCase();
+              return label.includes("back") || label.includes("rear") || label.includes("environment") || label.includes("หลัง");
+            });
+            if (rearCamera) targetDeviceId = rearCamera.id;
           }
         }
 
-        console.log("[Scanner] Selected Camera ID:", targetCameraId);
+        // จัดเตรียมคอนฟิกการตัดภาพ (qrbox) 
+        const scanConfig = {
+          fps: 15,
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const widthRatio = isDesktop ? 0.92 : 0.84;
+            const heightRatio = isDesktop ? 0.42 : 0.30;
+            const maxWidth = isDesktop ? 1400 : 900;
+            const maxHeight = isDesktop ? 360 : 190;
+            const width = Math.min(Math.floor(viewfinderWidth * widthRatio), maxWidth);
+            const height = Math.min(Math.floor(viewfinderHeight * heightRatio), maxHeight);
+            return { width, height };
+          },
+          aspectRatio: 16 / 9,
+          disableFlip: true
+        };
 
-        // 🔴 5. สั่งเปิดกล้องด้วย ID ที่แม่นยำที่สุด
+        const cameraConfig = targetDeviceId 
+          ? { deviceId: { exact: targetDeviceId } } 
+          : { facingMode: "environment" };
+
+        // 🔴 บังคับความละเอียดภาพเป็น HD (1280x720) เพื่อให้บาร์โค้ดชัดแม้ถือห่างๆ
+        scanConfig.videoConstraints = {
+          ...cameraConfig,
+          width: isDesktop ? { min: 1280, ideal: 1920 } : { ideal: 1280 },
+          height: isDesktop ? { min: 720, ideal: 1080 } : { ideal: 720 },
+          frameRate: isDesktop ? { ideal: 30, max: 30 } : { ideal: 30, max: 60 }
+        };
+
+        // สั่งเปิดกล้อง
         await html5QrCode.start(
-          targetCameraId,
+          cameraConfig,
           scanConfig,
           onScanSuccess,
           onScanFailure
         );
 
         isScanning = true;
+        console.log("[Scanner] Camera started with DNA from good file.");
 
         setTimeout(() => {
           try {
@@ -412,23 +422,10 @@
 
       } catch (err) {
         console.error("[Scanner] Camera start error:", err);
-
         isScanning = false;
         document.getElementById('btnStart').style.display = 'block';
         document.getElementById('scanBox').style.display = 'none';
-
-        let message = "ไม่สามารถเปิดกล้องได้";
-        if (err && err.name === "NotAllowedError") {
-          message = "ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตการเข้าถึงใน Safari/Chrome";
-        } else if (err && err.name === "NotFoundError") {
-          message = "ไม่พบกล้องในอุปกรณ์";
-        } else if (err && err.name === "NotReadableError") {
-          message = "กล้องกำลังถูกใช้งานโดยแอปหรือหน้าเว็บอื่น";
-        } else if (err && err.message) {
-          message += ": " + err.message;
-        }
-
-        alert(message);
+        alert("ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตสิทธิ์ หรือใช้ Android ในการสแกน");
       }
     }
 
